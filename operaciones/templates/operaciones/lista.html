@@ -1,0 +1,145 @@
+{% extends 'operaciones/base.html' %}
+{% load operaciones_extras %}
+{% load tz %}
+{% block title %}Seguimiento de Transportistas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1 fw-bold">Seguimiento de Transportistas</h2>
+        <p class="text-muted mb-0">
+            Control de ingreso, escaneo por área y trazabilidad de tiempos.
+        </p>
+    </div>
+
+    {% if area_usuario and area_usuario.codigo == 'PORTERIA' %}
+        <a href="{% url 'ingreso' %}" class="btn btn-primary">
+            + Nuevo ingreso
+        </a>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+    {% for area in areas %}
+        <div class="col-lg-2 col-md-4 col-sm-6">
+            <div class="card card-kpi h-100 text-center">
+                <div class="card-body">
+                    <div class="text-muted small">{{ area.nombre }}</div>
+                    <div class="fs-2 fw-bold">{{ conteos|get_item:area.codigo }}</div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2">
+            <div class="col-md-4">
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ q }}"
+                    class="form-control"
+                    placeholder="Buscar por placa">
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-outline-primary">Buscar</button>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'lista' %}" class="btn btn-outline-secondary">Limpiar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="tabla-panel p-3">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>QR</th>
+                    <th>Placa</th>
+                    <th>Conductor</th>
+                    <th>Empresa</th>
+                    <th>Ingreso</th>
+                    <th>Estado</th>
+                    <th>Siguiente área</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in transportistas %}
+                <tr class="estado-{{ t.area_actual.codigo }}">
+                    <td class="text-center">
+                        {% if t.qr_imagen %}
+                            <img
+                                src="{{ t.qr_imagen.url }}"
+                                alt="QR {{ t.placa }}"
+                                class="qr-thumb"
+                                data-bs-toggle="modal"
+                                data-bs-target="#qrModal{{ t.id }}">
+
+                            <div class="modal fade" id="qrModal{{ t.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">QR - {{ t.placa }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-center">
+                                            <img src="{{ t.qr_imagen.url }}" alt="QR {{ t.placa }}" class="img-fluid" style="max-width: 320px;">
+                                            <p class="mt-3 mb-0 text-muted">
+                                                Escanee o imprima este código QR.
+                                            </p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                                                Imprimir
+                                            </button>
+                                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                                                Cerrar
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="text-muted small">Sin QR</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="fw-semibold">{{ t.placa }}</td>
+                    <td>{{ t.conductor }}</td>
+                    <td>{{ t.empresa }}</td>
+                    <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        <span class="badge bg-dark estado-badge">
+                            {{ t.area_actual.nombre }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if t.siguiente_area %}
+                            {{ t.siguiente_area.nombre }}
+                        {% else %}
+                            <span class="text-success fw-bold">Finalizado</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-dark">
+                            Historial
+                        </a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        No hay transportistas registrados.
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

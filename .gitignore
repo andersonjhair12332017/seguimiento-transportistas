@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Base de datos local
+db.sqlite3
+
+# Archivos media subidos/generados
+media/
+
+# Archivos estáticos recolectados
+staticfiles/
+
+# Variables de entorno / secretos
+.env
+.env.*
+
+# VS Code / editores
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Migraciones compiladas
+*/migrations/*.pyc
+
+# Archivos temporales
+*.tmp
+*.bak
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/

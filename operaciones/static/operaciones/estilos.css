@@ -1,0 +1,53 @@
+body {
+    background: #f5f7fb;
+}
+
+.navbar-brand {
+    font-weight: 700;
+}
+
+.card-kpi {
+    border: 0;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+}
+
+.tabla-panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.qr-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+    padding: 4px;
+    cursor: pointer;
+}
+
+.estado-badge {
+    font-size: 0.84rem;
+}
+
+.estado-PORTERIA {
+    background-color: #e7f1ff;
+}
+.estado-DESPACHOS {
+    background-color: #fff3cd;
+}
+.estado-PARQUEADERO {
+    background-color: #f8d7da;
+}
+.estado-CARGUE {
+    background-color: #d1e7dd;
+}
+.estado-FACTURACION {
+    background-color: #e2e3e5;
+}
+.estado-SALIDA {
+    background-color: #cff4fc;
+}

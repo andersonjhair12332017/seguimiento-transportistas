@@ -1,0 +1,40 @@
+{% extends 'operaciones/base.html' %}
+{% block title %}Ingreso en Portería{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h3 class="fw-bold mb-2">Ingreso en Portería</h3>
+                <p class="text-muted">
+                    Solo personal autorizado de Portería puede registrar ingresos.
+                </p>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Placa</label>
+                            {{ form.placa }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Conductor</label>
+                            {{ form.conductor }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Empresa</label>
+                            {{ form.empresa }}
+                        </div>
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2">
+                        <button class="btn btn-success">Registrar ingreso</button>
+                        <a href="{% url 'lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
