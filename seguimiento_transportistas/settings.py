@@ -4,6 +4,7 @@ Django settings for seguimiento_transportistas project.
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 # --------------------------------------------------
 # RUTAS BASE
@@ -100,11 +101,31 @@ WSGI_APPLICATION = "seguimiento_transportistas.wsgi.application"
 # BASE DE DATOS
 # --------------------------------------------------
 # Prioridad:
-# 1) Variables POSTGRES_* inyectadas por Vercel / Neon
-# 2) Variables DB* manuales
-# 3) SQLite local
+# 1) DATABASE_URL (recomendado en Vercel/Marketplace)
+# 2) POSTGRES_* inyectadas por Vercel / Neon
+# 3) DB* manuales
+# 4) SQLite local SOLO fuera de Vercel
 
-if os.getenv("POSTGRES_HOST"):
+database_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
+
+if database_url:
+    parsed = urlparse(database_url)
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": parsed.path.lstrip("/"),
+            "USER": parsed.username,
+            "PASSWORD": parsed.password,
+            "HOST": parsed.hostname,
+            "PORT": parsed.port or 5432,
+            "OPTIONS": {
+                "sslmode": "require",
+            },
+        }
+    }
+
+elif os.getenv("POSTGRES_HOST"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -142,23 +163,12 @@ else:
         }
     }
 
-# --------------------------------------------------
-# VALIDACIÓN DE CONTRASEÑAS
-# --------------------------------------------------
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
-]
+# Protección: si está corriendo en Vercel y cayó en SQLite, fallar explícitamente
+if os.getenv("VERCEL") and DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
+    raise RuntimeError(
+        "La aplicación está corriendo en Vercel pero quedó configurada con SQLite. "
+        "Revisa las variables DATABASE_URL / POSTGRES_* en Production."
+    )
 
 # --------------------------------------------------
 # INTERNACIONALIZACIÓN
