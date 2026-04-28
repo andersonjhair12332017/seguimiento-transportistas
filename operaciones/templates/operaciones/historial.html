@@ -29,24 +29,116 @@
                 {{ transportista.empresa }}
             </div>
             <div class="col-md-3">
-                <strong>Fecha ingreso</strong><br>
+                <strong>Ingreso</strong><br>
                 {{ transportista.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}
             </div>
         </div>
     </div>
 </div>
 
-<div class="card shadow-sm border-0">
+<!-- Registros por área -->
+<div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
-        <h4 class="mb-3">Movimientos registrados</h4>
+        <h4 class="mb-3">Tiempos por área</h4>
         <div class="table-responsive">
             <table class="table table-striped align-middle">
                 <thead class="table-dark">
                     <tr>
                         <th>#</th>
                         <th>Área</th>
+                        <th>Inicio</th>
+                        <th>Fin</th>
+                        <th>Usuario inicio</th>
+                        <th>Usuario fin</th>
+                        <th>Duración (min)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for r in registros_area %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ r.area.nombre }}</td>
+                        <td>{{ r.fecha_inicio|localtime|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            {% if r.fecha_fin %}
+                                {{ r.fecha_fin|localtime|date:"Y-m-d H:i:s" }}
+                            {% else %}
+                                En proceso
+                            {% endif %}
+                        </td>
+                        <td>{{ r.usuario_inicio.username }}</td>
+                        <td>{% if r.usuario_fin %}{{ r.usuario_fin.username }}{% else %}-{% endif %}</td>
+                        <td>{% if r.duracion_minutos %}{{ r.duracion_minutos }}{% else %}-{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No hay registros de áreas.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Asignaciones de cargue -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h4 class="mb-3">Asignaciones de cargue</h4>
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Puerta</th>
+                        <th>Complemento</th>
+                        <th>Inicio</th>
+                        <th>Fin</th>
                         <th>Usuario</th>
-                        <th>Fecha y hora exacta</th>
+                        <th>Observación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for a in asignaciones %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ a.puerta.numero }}</td>
+                        <td>{% if a.complemento %}Sí{% else %}No{% endif %}</td>
+                        <td>{{ a.fecha_inicio|localtime|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            {% if a.fecha_fin %}
+                                {{ a.fecha_fin|localtime|date:"Y-m-d H:i:s" }}
+                            {% else %}
+                                En proceso
+                            {% endif %}
+                        </td>
+                        <td>{{ a.usuario.username }}</td>
+                        <td>{{ a.observacion|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No hay asignaciones de cargue registradas.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Eventos -->
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <h4 class="mb-3">Eventos / auditoría</h4>
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Área</th>
+                        <th>Tipo</th>
+                        <th>Usuario</th>
+                        <th>Fecha y hora</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -54,12 +146,13 @@
                     <tr>
                         <td>{{ forloop.counter }}</td>
                         <td>{{ m.area.nombre }}</td>
+                        <td>{{ m.tipo }}</td>
                         <td>{{ m.usuario.username }}</td>
                         <td>{{ m.fecha_hora|localtime|date:"Y-m-d H:i:s" }}</td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center text-muted">No hay movimientos registrados.</td>
+                        <td colspan="5" class="text-center text-muted">No hay eventos registrados.</td>
                     </tr>
                 {% endfor %}
                 </tbody>

@@ -1,53 +1,55 @@
-body {
-    background: #f5f7fb;
-}
-
-.navbar-brand {
+.titulo-principal {
     font-weight: 700;
+    font-size: 2rem;
 }
 
-.card-kpi {
-    border: 0;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+.subtitulo-principal {
+    font-size: 1rem;
+    font-weight: 500;
 }
 
-.tabla-panel {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.05);
-    overflow: hidden;
+.titulo-panel {
+    font-weight: 700;
+    font-size: 1.1rem;
 }
 
-.qr-thumb {
-    width: 56px;
-    height: 56px;
-    object-fit: contain;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    background: #fff;
-    padding: 4px;
-    cursor: pointer;
+.subtitulo-card {
+    font-weight: 700;
+    font-size: 1rem;
 }
 
-.estado-badge {
-    font-size: 0.84rem;
+.accordion-button {
+    font-weight: 700;
+    font-size: 1rem;
 }
 
-.estado-PORTERIA {
-    background-color: #e7f1ff;
-}
-.estado-DESPACHOS {
-    background-color: #fff3cd;
-}
-.estado-PARQUEADERO {
-    background-color: #f8d7da;
-}
-.estado-CARGUE {
+.tiempo-ok {
     background-color: #d1e7dd;
+    color: #0f5132;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    display: inline-block;
 }
-.estado-FACTURACION {
-    background-color: #e2e3e5;
+
+.tiempo-warning {
+    background-color: #fff3cd;
+    color: #664d03;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    display: inline-block;
 }
-.estado-SALIDA {
-    background-color: #cff4fc;
+
+.tiempo-danger {
+    background-color: #f8d7da;
+    color: #842029;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    display: inline-block;
+}
+
+.indicador-bottleneck {
+    border-left: 6px solid #dc3545;
 }

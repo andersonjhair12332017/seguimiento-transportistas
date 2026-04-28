@@ -1,0 +1,27 @@
+{% extends 'operaciones/base.html' %}
+{% block title %}Eliminar transportista{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 border-danger">
+            <div class="card-body p-4">
+                <h3 class="fw-bold text-danger mb-3">Eliminar transportista</h3>
+                <p>¿Seguro que deseas eliminar este registro?</p>
+
+                <ul>
+                    <li><strong>Placa:</strong> {{ transportista.placa }}</li>
+                    <li><strong>Conductor:</strong> {{ transportista.conductor }}</li>
+                    <li><strong>Empresa:</strong> {{ transportista.empresa }}</li>
+                </ul>
+
+                <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+                    <a href="{% url 'lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

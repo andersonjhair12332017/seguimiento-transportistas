@@ -1,0 +1,40 @@
+{% extends 'operaciones/base.html' %}
+{% block title %}Asignar puerta de cargue{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h3 class="fw-bold mb-2">Inicio de Cargue</h3>
+                <p class="text-muted">
+                    Transportista: <strong>{{ transportista.placa }}</strong> - {{ transportista.conductor }}
+                </p>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Puerta disponible</label>
+                        {{ form.puerta }}
+                    </div>
+
+                    <div class="form-check mb-3">
+                        {{ form.complemento }}
+                        <label class="form-check-label">¿Es complemento?</label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observación</label>
+                        {{ form.observacion }}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary">Registrar inicio de cargue</button>
+                        <a href="{% url 'lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

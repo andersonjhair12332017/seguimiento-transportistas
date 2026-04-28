@@ -1,12 +1,13 @@
 {% extends 'operaciones/base.html' %}
-{% block title %}Nuevo ingreso{% endblock %}
+{% block title %}Editar transportista{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <h3 class="fw-bold mb-3">Nuevo ingreso</h3>
+                <h3 class="fw-bold mb-3">Editar transportista</h3>
+                <p class="text-muted">Placa actual: <strong>{{ transportista.placa }}</strong></p>
 
                 <form method="post">
                     {% csrf_token %}
@@ -26,7 +27,7 @@
                     </div>
 
                     <div class="mt-4 d-flex gap-2">
-                        <button class="btn btn-primary">Registrar</button>
+                        <button class="btn btn-primary">Guardar cambios</button>
                         <a href="{% url 'lista' %}" class="btn btn-outline-secondary">Cancelar</a>
                     </div>
                 </form>
