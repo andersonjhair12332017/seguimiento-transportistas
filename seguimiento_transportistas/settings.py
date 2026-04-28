@@ -29,8 +29,6 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
-# Para Vercel, la mejor práctica es configurar esto por variable de entorno.
-# En local puede quedar vacío o con localhost.
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
@@ -101,9 +99,27 @@ WSGI_APPLICATION = "seguimiento_transportistas.wsgi.application"
 # --------------------------------------------------
 # BASE DE DATOS
 # --------------------------------------------------
-# Si existe DBHOST, usa PostgreSQL (Vercel / nube)
-# Si NO existe DBHOST, usa SQLite local
-if os.getenv("DBHOST"):
+# Prioridad:
+# 1) Variables POSTGRES_* inyectadas por Vercel / Neon
+# 2) Variables DB* manuales
+# 3) SQLite local
+
+if os.getenv("POSTGRES_HOST"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DATABASE", "neondb"),
+            "USER": os.getenv("POSTGRES_USER", "postgres"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+            "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+            "PORT": "5432",
+            "OPTIONS": {
+                "sslmode": "require",
+            },
+        }
+    }
+
+elif os.getenv("DBHOST"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -113,10 +129,11 @@ if os.getenv("DBHOST"):
             "HOST": os.getenv("DBHOST", "localhost"),
             "PORT": os.getenv("DBPORT", "5432"),
             "OPTIONS": {
-                "sslmode": "require"
+                "sslmode": "require",
             },
         }
     }
+
 else:
     DATABASES = {
         "default": {
