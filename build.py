@@ -15,3 +15,6 @@ if __name__ == "__main__":
 
     # Usuarios operativos por área
     run([sys.executable, "manage.py", "seed_usuarios_area"])
+
+    # Superusuario remoto
+    run([sys.executable, "manage.py", "create_admin_remoto"])
