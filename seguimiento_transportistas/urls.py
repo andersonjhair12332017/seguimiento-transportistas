@@ -22,4 +22,3 @@ urlpatterns = [
 
     path("", include("operaciones.urls")),
 ]
-``
