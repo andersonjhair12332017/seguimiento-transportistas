@@ -573,6 +573,22 @@ def usuarios_lista(request):
 
 
 @login_required
+def usuarios_lista(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Solo el superusuario puede administrar usuarios.")
+
+    usuarios = User.objects.all().order_by("username").prefetch_related("groups")
+
+    return render(
+        request,
+        "operaciones/usuarios_lista.html",
+        {
+            "usuarios": usuarios,
+        },
+    )
+
+
+@login_required
 def usuario_crear(request):
     if not request.user.is_superuser:
         return HttpResponseForbidden("Solo el superusuario puede crear usuarios.")
@@ -699,9 +715,7 @@ def usuario_eliminar(request, pk):
             "usuario_obj": usuario_obj,
         },
     )
-
-
-
+    
 @login_required
 def scan_qr(request, codigo_qr):
     transportista = get_object_or_404(
