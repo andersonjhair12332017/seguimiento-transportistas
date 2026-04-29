@@ -221,3 +221,11 @@ USE_X_FORWARDED_HOST = True
 # CONFIGURACIÓN POR DEFECTO DE PK
 # --------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --------------------------------------------------
+# SESIONES
+# --------------------------------------------------
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7   # 7 días
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_SAMESITE = "Lax"
