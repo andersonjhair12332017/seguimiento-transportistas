@@ -17,7 +17,10 @@ from .forms import (
     TransportistaIngresoForm,
     TransportistaEditarForm,
     AsignacionCargueForm,
+    UsuarioCrearForm,
+    UsuarioEditarForm,
 )
+
 from .models import (
     Area,
     Movimiento,
@@ -552,6 +555,151 @@ def eliminar_transportista(request, pk):
             "transportista": transportista,
         },
     )
+
+    @login_required
+def usuarios_lista(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Solo el superusuario puede administrar usuarios.")
+
+    usuarios = User.objects.all().order_by("username").prefetch_related("groups")
+
+    return render(
+        request,
+        "operaciones/usuarios_lista.html",
+        {
+            "usuarios": usuarios,
+        },
+    )
+
+
+@login_required
+def usuario_crear(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Solo el superusuario puede crear usuarios.")
+
+    if request.method == "POST":
+        form = UsuarioCrearForm(request.POST)
+        if form.is_valid():
+            user = User.objects.create_user(
+                username=form.cleaned_data["username"],
+                email=form.cleaned_data["email"],
+                password=form.cleaned_data["password"],
+            )
+
+            user.is_active = form.cleaned_data["is_active"]
+            user.is_staff = form.cleaned_data["is_staff"] or form.cleaned_data["is_superuser"]
+            user.is_superuser = form.cleaned_data["is_superuser"]
+            user.save()
+
+            grupo = form.cleaned_data["grupo"]
+            if grupo:
+                user.groups.clear()
+                user.groups.add(grupo)
+
+            messages.success(request, f"Usuario {user.username} creado correctamente.")
+            return redirect("usuarios_lista")
+    else:
+        form = UsuarioCrearForm()
+
+    return render(
+        request,
+        "operaciones/usuario_form.html",
+        {
+            "form": form,
+            "titulo": "Crear usuario",
+            "boton": "Crear usuario",
+        },
+    )
+
+
+@login_required
+def usuario_editar(request, pk):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Solo el superusuario puede editar usuarios.")
+
+    usuario_obj = get_object_or_404(User, pk=pk)
+
+    grupo_actual = usuario_obj.groups.first()
+
+    if request.method == "POST":
+        form = UsuarioEditarForm(request.POST)
+        if form.is_valid():
+            nuevo_username = form.cleaned_data["username"].strip()
+
+            if User.objects.exclude(pk=usuario_obj.pk).filter(username=nuevo_username).exists():
+                form.add_error("username", "Ya existe otro usuario con ese nombre.")
+            else:
+                usuario_obj.username = nuevo_username
+                usuario_obj.email = form.cleaned_data["email"]
+                usuario_obj.is_active = form.cleaned_data["is_active"]
+                usuario_obj.is_staff = form.cleaned_data["is_staff"] or form.cleaned_data["is_superuser"]
+                usuario_obj.is_superuser = form.cleaned_data["is_superuser"]
+
+                nueva_password = form.cleaned_data["password"]
+                if nueva_password:
+                    usuario_obj.set_password(nueva_password)
+
+                usuario_obj.save()
+
+                grupo = form.cleaned_data["grupo"]
+                usuario_obj.groups.clear()
+                if grupo:
+                    usuario_obj.groups.add(grupo)
+
+                messages.success(request, f"Usuario {usuario_obj.username} actualizado correctamente.")
+                return redirect("usuarios_lista")
+    else:
+        form = UsuarioEditarForm(
+            initial={
+                "username": usuario_obj.username,
+                "email": usuario_obj.email,
+                "grupo": grupo_actual,
+                "is_active": usuario_obj.is_active,
+                "is_staff": usuario_obj.is_staff,
+                "is_superuser": usuario_obj.is_superuser,
+            }
+        )
+
+    return render(
+        request,
+        "operaciones/usuario_form.html",
+        {
+            "form": form,
+            "titulo": f"Editar usuario: {usuario_obj.username}",
+            "boton": "Guardar cambios",
+        },
+    )
+
+
+@login_required
+def usuario_eliminar(request, pk):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Solo el superusuario puede eliminar usuarios.")
+
+    usuario_obj = get_object_or_404(User, pk=pk)
+
+    if usuario_obj == request.user:
+        messages.error(request, "No puedes eliminar tu propio usuario mientras estás autenticado.")
+        return redirect("usuarios_lista")
+
+    if usuario_obj.username == "sistema":
+        messages.error(request, "No se puede eliminar el usuario del sistema.")
+        return redirect("usuarios_lista")
+
+    if request.method == "POST":
+        username = usuario_obj.username
+        usuario_obj.delete()
+        messages.success(request, f"Usuario {username} eliminado correctamente.")
+        return redirect("usuarios_lista")
+
+    return render(
+        request,
+        "operaciones/usuario_eliminar.html",
+        {
+            "usuario_obj": usuario_obj,
+        },
+    )
+
 
 
 @login_required

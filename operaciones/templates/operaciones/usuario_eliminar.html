@@ -1,0 +1,26 @@
+{% extends 'operaciones/base.html' %}
+{% block title %}Eliminar usuario{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 border-danger">
+            <div class="card-body p-4">
+                <h3 class="fw-bold text-danger mb-3">Eliminar usuario</h3>
+                <p>¿Seguro que deseas eliminar este usuario?</p>
+
+                <ul>
+                    <li><strong>Usuario:</strong> {{ usuario_obj.username }}</li>
+                    <li><strong>Correo:</strong> {{ usuario_obj.email|default:"-" }}</li>
+                </ul>
+
+                <form method="post" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+                    <a href="{% url 'usuarios_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
