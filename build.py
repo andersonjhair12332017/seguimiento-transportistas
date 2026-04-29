@@ -2,6 +2,10 @@ import subprocess
 import sys
 
 
+import subprocess
+import sys
+
+
 def run(cmd):
     subprocess.run(cmd, check=True)
 
