@@ -1,214 +1,7 @@
 {% load operaciones_extras %}
-{% load tz2 col-md-3 col-sm-4 col-6">{% load tz %}
-                    <div class="card {% if p.disponible %}border-success{% else %}border-danger{% endif %}">
-                        <div class="card-body text-center">
-                            <h5 class="mb-1 fw-bold">Puerta {{ p.numero }}</h5>
-                            {% if p.disponible %}
-                                <span class="badge bg-success">Libre</span>
-                                <div class="small text-muted mt-2">Sin vehículo</div>
-                            {% else %}
-                                <span class="badge bg-danger">Ocupada</span>
-                                <div class="small fw-bold mt-2">
-                                    {% if p.placa %}{{ p.placa }}{% else %}-{% endif %}
-                                </div>
-                                {% if p.complemento %}
-                                    <div class="small text-warning">Complemento</div>
-                                {% endif %}
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            {% empty %}
-                <div class="col-12 text-center text-muted">
-                    No hay puertas registradas.
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-{% endif %}
+{% load tz %}
 
-<!-- Tabla principal -->
-{% if vista != 'puertas' %}
-<div class="tabla-panel p-3">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-dark">
-                {% if vista == 'finalizados' %}
-                    <tr>
-                        <th>QR</th>
-                        <th>Placa</th>
-                        <th>Conductor</th>
-                        <th>Empresa</th>
-                        <th>Ingreso</th>
-                        <th>Salida</th>
-                        <th>Registros</th>
-                    </tr>
-                {% else %}
-                    <tr>
-                        <th>QR</th>
-                        <th>Placa</th>
-                        <th>Conductor</th>
-                        <th>Empresa</th>
-                        <th>Ingreso</th>
-                        <th>Estado actual</th>
-                        <th>Siguiente área</th>
-                        <th>Tiempo en área</th>
-                        <th>Pendiente</th>
-                        <th>Registros</th>
-                        <th>Puertas</th>
-                    </tr>
-                {% endif %}
-            </thead>
-            <tbody>
-            {% for t in transportistas %}
-                <tr class="{{ t.fila_css|default:'' }}">
-                    <td class="text-center">
-                        <a href="{% url 'qr_png' t.qr %}?v={{ t.qr }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                            Ver QR
-                        </a>
-                    </td>
-
-                    {% if vista == 'finalizados' %}
-                        <td class="fw-semibold">{{ t.placa }}</td>
-                        <td>{{ t.conductor }}</td>
-                        <td>{{ t.empresa }}</td>
-                        <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
-                        <td>
-                            {% if t.fecha_salida %}
-                                {{ t.fecha_salida|localtime|date:"Y-m-d H:i:s" }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
-                            {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-warning">Editar</a>
-                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
-                            {% endif %}
-                        </td>
-                    {% else %}
-                        <td class="fw-semibold">{{ t.placa }}</td>
-                        <td>{{ t.conductor }}</td>
-                        <td>{{ t.empresa }}</td>
-                        <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
-                        <td>
-                            <span class="badge bg-dark estado-badge">
-                                {{ t.area_actual.nombre }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if t.esta_finalizado %}
-                                <span class="text-success fw-bold">Finalizado</span>
-                            {% else %}
-                                {{ t.siguiente_area_texto }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="live-timer {{ t.tiempo_css }}"
-                                  data-base-seconds="{{ t.tiempo_area_segundos }}"
-                                  data-rendered-at="{{ panel_render_epoch }}">
-                                {{ t.tiempo_area_texto }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if t.pendiente_cierre %}
-                                <span class="badge bg-danger">Área pendiente por cerrar</span>
-                            {% else %}
-                                <span class="badge bg-success">Sin pendiente</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
-                            {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-warning">Editar</a>
-                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if t.area_actual.codigo == "CARGUE" %}
-                                {% for a in t.puertas_actuales %}
-                                    <span class="badge bg-primary">Puerta {{ a.puerta.numero }}</span>
-                                {% empty %}
-                                    <span class="text-muted">-</span>
-                                {% endfor %}
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                    {% endif %}
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="{% if vista == 'finalizados' %}7{% else %}11{% endif %}" class="text-center text-muted py-4">
-                        No hay vehículos en esta vista.
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="mb-1 titulo-principal">Seguimiento de Transportistas</h2>
-        <p class="text-muted mb-0 subtitulo-principal">
-            Control de ingreso, tiempos por área, puertas de cargue y trazabilidad.
-        </p>
-        <div id="ultima-actualizacion" class="small text-muted mt-1" data-timestamp="{{ panel_render_epoch }}">
-            Actualizado hace un instante
-        </div>
-    </div>
-
-    <div class="d-flex gap-2 flex-wrap">
-        {% if request.user.is_superuser %}
-            <a href="{% url 'usuarios_lista' %}" class="btn btn-outline-dark">Usuarios</a>
-        {% endif %}
-
-        {% if request.user.is_superuser %}
-            <a href="{% url 'supervisor' %}" class="btn btn-outline-danger">Supervisor</a>
-        {% endif %}
-
-        <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary">Historial</a>
-
-        {% if area_usuario or request.user.is_superuser %}
-            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-outline-success">Escanear</a>
-        {% endif %}
-
-        {% if request.user.is_superuser or area_usuario and area_usuario.codigo == "PORTERIA" %}
-            <a href="{% url 'ingreso' %}" class="btn btn-primary">+ Nuevo ingreso</a>
-        {% endif %}
-
-        <button id="btn-refrescar-panel" class="btn btn-outline-info" type="button">Actualizar</button>
-    </div>
-</div>
-
-<!-- KPIs -->
-<div class="row g-3 mb-4">
-    <div class="col-lg-2 col-md-4 col-sm-6">
-        <div class="card shadow-sm border-0 card-kpi">
-            <div class="card-body">
-                <div class="text-muted small">En proceso</div>
-                <div class="fs-2 fw-bold">{{ activos_count }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-2 col-md-4 col-sm-6">
-        <div class="card shadow-sm border-0 card-kpi">
-            <div class="card-body">
-                <div class="text-muted small">Finalizados</div>
-                <div class="fs-2 fw-bold">{{ finalizados_count }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-2 col-md-4 col-sm-6">
-        <div class="card shadow-sm border-0 card-kpi border-warning-subtle">
+<div class class="card shadow-sm border-0 card-kpi border-warning-subtle"><div class="d-flex justify-content-between align-items-center mb-4">
             <div class="card-body">
                 <div class="text-muted small">Alertas</div>
                 <div class="fs-2 fw-bold">{{ alertas_total }}</div>
@@ -357,3 +150,208 @@
         <h4 class="fw-bold mb-3">Estado de puertas de cargue</h4>
         <div class="row g-3">
             {% for p in tablero_puertas %}
+                <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                    <div class="card {% if p.disponible %}border-success{% else %}border-danger{% endif %}">
+                        <div class="card-body text-center">
+                            <h5 class="mb-1 fw-bold">Puerta {{ p.numero }}</h5>
+                            {% if p.disponible %}
+                                <span class="badge bg-success">Libre</span>
+                                <div class="small text-muted mt-2">Sin vehículo</div>
+                            {% else %}
+                                <span class="badge bg-danger">Ocupada</span>
+                                <div class="small fw-bold mt-2">
+                                    {% if p.placa %}{{ p.placa }}{% else %}-{% endif %}
+                                </div>
+                                {% if p.complemento %}
+                                    <div class="small text-warning">Complemento</div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="col-12 text-center text-muted">
+                    No hay puertas registradas.
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Tabla principal -->
+{% if vista != 'puertas' %}
+<div class="tabla-panel p-3">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                {% if vista == 'finalizados' %}
+                    <tr>
+                        <th>QR</th>
+                        <th>Placa</th>
+                        <th>Conductor</th>
+                        <th>Empresa</th>
+                        <th>Ingreso</th>
+                        <th>Salida</th>
+                        <th>Registros</th>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <th>QR</th>
+                        <th>Placa</th>
+                        <th>Conductor</th>
+                        <th>Empresa</th>
+                        <th>Ingreso</th>
+                        <th>Estado actual</th>
+                        <th>Siguiente área</th>
+                        <th>Tiempo en área</th>
+                        <th>Pendiente</th>
+                        <th>Registros</th>
+                        <th>Puertas</th>
+                    </tr>
+                {% endif %}
+            </thead>
+            <tbody>
+            {% for t in transportistas %}
+                <tr class="{{ t.fila_css|default:'' }}">
+                    <td class="text-center">
+                        <a href="{% url 'qr_png' t.qr %}?v={{ t.qr }}" class="btn btn-sm btn-outline-secondary">Ver QR</a>
+                    </td>
+
+                    {% if vista == 'finalizados' %}
+                        <td class="fw-semibold">{{ t.placa }}</td>
+                        <td>{{ t.conductor }}</td>
+                        <td>{{ t.empresa }}</td>
+                        <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            {% if t.fecha_salida %}
+                                {{ t.fecha_salida|localtime|date:"Y-m-d H:i:s" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
+                            {% if request.user.is_superuser %}
+                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-dark">Editar</a>
+                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                            {% endif %}
+                        </td>
+                    {% else %}
+                        <td class="fw-semibold">{{ t.placa }}</td>
+                        <td>{{ t.conductor }}</td>
+                        <td>{{ t.empresa }}</td>
+                        <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
+                        <td>
+                            <span class="badge bg-dark estado-badge">
+                                {{ t.area_actual.nombre }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if t.esta_finalizado %}
+                                <span class="text-success fw-bold">Finalizado</span>
+                            {% else %}
+                                {{ t.siguiente_area_texto }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="live-timer {{ t.tiempo_css }}"
+                                  data-base-seconds="{{ t.tiempo_area_segundos }}"
+                                  data-rendered-at="{{ panel_render_epoch }}">
+                                {{ t.tiempo_area_texto }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if t.pendiente_cierre %}
+                                <span class="badge bg-danger">Área pendiente por cerrar</span>
+                            {% else %}
+                                <span class="badge bg-success">Sin pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
+                            {% if request.user.is_superuser %}
+                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-dark">Editar</a>
+                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if t.area_actual.codigo == "CARGUE" %}
+                                {% for a in t.puertas_actuales %}
+                                    <span class="badge bg-primary">Puerta {{ a.puerta.numero }}</span>
+                                {% empty %}
+                                    <span class="text-muted">-</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    {% endif %}
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="{% if vista == 'finalizados' %}7{% else %}11{% endif %}" class="text-center text-muted py-4">
+                        No hay vehículos en esta vista.
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+    <div>
+        <h2 class="mb-1 titulo-principal">Seguimiento de Transportistas</h2>
+        <p class="text-muted mb-0 subtitulo-principal">
+            Control de ingreso, tiempos por área, puertas de cargue y trazabilidad.
+        </p>
+        <div id="ultima-actualizacion" class="small text-muted mt-1" data-timestamp="{{ panel_render_epoch }}">
+            Actualizado hace un instante
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+        {% if request.user.is_superuser %}
+            <a href="{% url 'usuarios_lista' %}" class="btn btn-outline-dark">Usuarios</a>
+        {% endif %}
+
+        {% if request.user.is_superuser %}
+            <a href="{% url 'supervisor' %}" class="btn btn-outline-danger">Supervisor</a>
+        {% endif %}
+
+        <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary">Historial</a>
+
+        {% if area_usuario or request.user.is_superuser %}
+            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-outline-success">Escanear</a>
+        {% endif %}
+
+        {% if request.user.is_superuser or area_usuario and area_usuario.codigo == "PORTERIA" %}
+            <a href="{% url 'ingreso' %}" class="btn btn-primary">+ Nuevo ingreso</a>
+        {% endif %}
+
+        <button id="btn-refrescar-panel" class="btn btn-outline-info" type="button">Actualizar</button>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
+            <div class="card-body">
+                <div class="text-muted small">En proceso</div>
+                <div class="fs-2 fw-bold">{{ activos_count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
+            <div class="card-body">
+                <div class="text-muted small">Finalizados</div>
+                <div class="fs-2 fw-bold">{{ finalizados_count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-2 col-md-4 col-sm-6">
