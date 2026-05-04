@@ -1,5 +1,5 @@
 from io import BytesIO
-from datetime import timedelta
+from datetime import timedelta, time as dt_time
 import uuid
 import qrcode
 
@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db.models import Q
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -125,9 +126,6 @@ def _cerrar_registro_area_si_abierto(transportista, codigo_area, usuario):
 
 
 def _liberar_puertas_activas(transportista):
-    """
-    Libera todas las puertas activas del transportista.
-    """
     asignaciones_activas = (
         transportista.asignaciones_cargue.filter(activa=True)
         .select_related("puerta")
@@ -146,14 +144,9 @@ def _liberar_puertas_activas(transportista):
 
 
 def _actualizar_parqueadero_transportista(transportista):
-    """
-    Si el vehículo terminó DESPACHOS y pasan 20 minutos sin iniciar CARGUE,
-    lo mueve automáticamente a PARQUEADERO.
-    """
     if transportista.esta_finalizado:
         return False
 
-    # Si ya inició cargue alguna vez, no mandarlo a parqueadero
     if transportista.registros_area.filter(area__codigo="CARGUE").exists():
         return False
 
@@ -166,11 +159,9 @@ def _actualizar_parqueadero_transportista(transportista):
     if not ultimo_despacho:
         return False
 
-    # DESPACHOS debe estar cerrado
     if ultimo_despacho.activo or not ultimo_despacho.fecha_fin:
         return False
 
-    # Si ya está en cargue o más allá, no tocar
     if transportista.area_actual.codigo in ["CARGUE", "FACTURACION", "SALIDA"]:
         return False
 
@@ -201,8 +192,7 @@ def _actualizar_parqueadero_automatico():
 
 def _generar_qr_para_transportista(request, transportista):
     """
-    Se conserva por compatibilidad histórica, pero ya no dependemos del archivo local.
-    El QR real se entrega por la vista qr_png().
+    Compatibilidad histórica: ya no generamos archivo local.
     """
     return None
 
@@ -229,18 +219,12 @@ def qr_png(request, codigo_qr):
 
 
 def _tiempo_en_area_minutos(transportista):
-    """
-    Calcula el tiempo transcurrido en el área actual del vehículo.
-    Devuelve minutos.
-    """
     codigo = transportista.area_actual.codigo
 
-    # PORTERIA / Entrada: medir desde fecha_ingreso
     if codigo == "PORTERIA":
         delta = timezone.now() - transportista.fecha_ingreso
         return max(0, round(delta.total_seconds() / 60, 2))
 
-    # Registro abierto del área actual
     registro_abierto = (
         RegistroArea.objects.filter(
             transportista=transportista,
@@ -255,7 +239,6 @@ def _tiempo_en_area_minutos(transportista):
         delta = timezone.now() - registro_abierto.fecha_inicio
         return max(0, round(delta.total_seconds() / 60, 2))
 
-    # Último registro del área actual
     ultimo_registro = (
         RegistroArea.objects.filter(
             transportista=transportista,
@@ -270,7 +253,6 @@ def _tiempo_en_area_minutos(transportista):
         delta = timezone.now() - referencia
         return max(0, round(delta.total_seconds() / 60, 2))
 
-    # Último movimiento del área actual
     ultimo_movimiento = (
         Movimiento.objects.filter(
             transportista=transportista,
@@ -284,7 +266,6 @@ def _tiempo_en_area_minutos(transportista):
         delta = timezone.now() - ultimo_movimiento.fecha_hora
         return max(0, round(delta.total_seconds() / 60, 2))
 
-    # Fallback
     delta = timezone.now() - transportista.fecha_ingreso
     return max(0, round(delta.total_seconds() / 60, 2))
 
@@ -296,18 +277,27 @@ def _formatear_minutos_hhmm(minutos):
     return f"{horas:02d} h {mins:02d} min"
 
 
+def _formatear_segundos_hhmmss(segundos):
+    total = max(0, int(segundos))
+    horas = total // 3600
+    mins = (total % 3600) // 60
+    secs = total % 60
+    return f"{horas:02d} h {mins:02d} min {secs:02d} s"
+
+
 def _clase_tiempo(codigo_area, minutos):
     umbral = ALERTA_UMBRAL.get(codigo_area, 15)
 
     if minutos <= umbral * 0.5:
-        return "tiempo-ok", "Normal"
+        return "tiempo-ok", "Normal", "fila-ok"
     elif minutos <= umbral:
-        return "tiempo-warning", "Atención"
+        return "tiempo-warning", "Atención", "fila-warning"
     else:
-        return "tiempo-danger", "Alerta"
+        return "tiempo-danger", "Alerta", "fila-danger"
 
 
 def _ok(request, transportista, mensaje):
+    area_usuario = _obtener_area_usuario(request.user)
     return render(
         request,
         "operaciones/scan_resultado.html",
@@ -316,11 +306,13 @@ def _ok(request, transportista, mensaje):
             "titulo": "Registro correcto",
             "mensaje": mensaje,
             "transportista": transportista,
+            "area_usuario": area_usuario,
         },
     )
 
 
 def _error(request, transportista, mensaje):
+    area_usuario = _obtener_area_usuario(request.user)
     return render(
         request,
         "operaciones/scan_resultado.html",
@@ -329,23 +321,60 @@ def _error(request, transportista, mensaje):
             "titulo": "Registro no permitido",
             "mensaje": mensaje,
             "transportista": transportista,
+            "area_usuario": area_usuario,
         },
     )
+
+
+def _marcar_estado_transportista(transportista, panel_render_epoch):
+    minutos = _tiempo_en_area_minutos(transportista)
+    css, estado, fila_css = _clase_tiempo(transportista.area_actual.codigo, minutos)
+
+    registro_abierto = _obtener_cualquier_registro_abierto(transportista)
+
+    transportista.tiempo_area_min = minutos
+    transportista.tiempo_area_segundos = int(round(minutos * 60))
+    transportista.tiempo_area_texto = _formatear_minutos_hhmm(minutos)
+    transportista.tiempo_css = css
+    transportista.tiempo_estado = estado
+    transportista.fila_css = fila_css
+    transportista.panel_render_epoch = panel_render_epoch
+    transportista.pendiente_cierre = bool(
+        registro_abierto and registro_abierto.area.codigo == transportista.area_actual.codigo
+    )
+    transportista.area_pendiente_nombre = registro_abierto.area.nombre if registro_abierto else None
+    return transportista
+
+
+def _obtener_turno_desde_hora(hora_valor):
+    if dt_time(6, 0) <= hora_valor < dt_time(14, 0):
+        return "mañana"
+    elif dt_time(14, 0) <= hora_valor < dt_time(22, 0):
+        return "tarde"
+    return "noche"
 
 
 def _construir_contexto_lista(request):
     _actualizar_parqueadero_automatico()
 
     q = request.GET.get("q", "").strip()
-    vista = request.GET.get("vista", "activos")  # activos | finalizados | puertas
+    vista = request.GET.get("vista", "activos")
+    panel_render_epoch = int(timezone.now().timestamp())
 
     transportistas_base = Transportista.objects.select_related("area_actual").all()
 
     if q:
-        transportistas_base = transportistas_base.filter(placa__icontains=q)
+        transportistas_base = transportistas_base.filter(
+            Q(placa__icontains=q) |
+            Q(conductor__icontains=q) |
+            Q(empresa__icontains=q)
+        )
 
-    activos_qs = transportistas_base.exclude(area_actual__codigo="SALIDA")
-    finalizados_qs = transportistas_base.filter(area_actual__codigo="SALIDA")
+    activos_qs = list(transportistas_base.exclude(area_actual__codigo="SALIDA"))
+    finalizados_qs = list(transportistas_base.filter(area_actual__codigo="SALIDA"))
+
+    for t in activos_qs:
+        _marcar_estado_transportista(t, panel_render_epoch)
 
     if vista == "finalizados":
         transportistas = finalizados_qs
@@ -354,7 +383,6 @@ def _construir_contexto_lista(request):
     else:
         transportistas = activos_qs
 
-    # Estos conteos son globales, no filtrados por búsqueda
     activos_count = Transportista.objects.exclude(area_actual__codigo="SALIDA").count()
     finalizados_count = Transportista.objects.filter(area_actual__codigo="SALIDA").count()
 
@@ -364,7 +392,6 @@ def _construir_contexto_lista(request):
         for area in areas
     }
 
-    # Tablero de puertas con autocorrección
     tablero_puertas = []
     for puerta in PuertaCargue.objects.all():
         asignacion = (
@@ -396,43 +423,42 @@ def _construir_contexto_lista(request):
             }
         )
 
-    # Indicadores de tiempo y alertas
     alertas_total = 0
     alertas_por_area = {}
+    pendientes_cierre_total = 0
 
     for transportista in activos_qs:
-        minutos = _tiempo_en_area_minutos(transportista)
-        css, estado = _clase_tiempo(transportista.area_actual.codigo, minutos)
-
-        transportista.tiempo_area_min = minutos
-        transportista.tiempo_area_texto = _formatear_minutos_hhmm(minutos)
-        transportista.tiempo_css = css
-        transportista.tiempo_estado = estado
-
-        if estado == "Alerta":
+        if transportista.tiempo_estado == "Alerta":
             alertas_total += 1
             alertas_por_area[transportista.area_actual.codigo] = (
                 alertas_por_area.get(transportista.area_actual.codigo, 0) + 1
             )
+        if transportista.pendiente_cierre:
+            pendientes_cierre_total += 1
 
-    # Cuello de botella
     cuello_botella_area = None
     cuello_botella_count = 0
-
     for area in areas:
         count_area = conteos.get(area.codigo, 0)
         if count_area > cuello_botella_count:
             cuello_botella_count = count_area
             cuello_botella_area = area.nombre
 
-    # Área con más alertas
     area_alerta_top = None
     area_alerta_count = 0
-
     for codigo, total in alertas_por_area.items():
         if total > area_alerta_count:
             area_alerta_count = total
             area_alerta_top = Area.objects.get(codigo=codigo).nombre
+
+    top_demoras = sorted(
+        activos_qs,
+        key=lambda x: x.tiempo_area_min,
+        reverse=True
+    )[:5]
+
+    total_segundos_activos = sum(t.tiempo_area_segundos for t in activos_qs) if activos_qs else 0
+    promedio_segundos_activos = int(total_segundos_activos / len(activos_qs)) if activos_qs else 0
 
     return {
         "transportistas": transportistas,
@@ -445,10 +471,15 @@ def _construir_contexto_lista(request):
         "finalizados_count": finalizados_count,
         "tablero_puertas": tablero_puertas,
         "alertas_total": alertas_total,
+        "pendientes_cierre_total": pendientes_cierre_total,
         "cuello_botella_area": cuello_botella_area,
         "cuello_botella_count": cuello_botella_count,
         "area_alerta_top": area_alerta_top,
         "area_alerta_count": area_alerta_count,
+        "top_demoras": top_demoras,
+        "kpi_promedio_texto": _formatear_segundos_hhmmss(promedio_segundos_activos),
+        "kpi_total_texto": _formatear_segundos_hhmmss(total_segundos_activos),
+        "panel_render_epoch": panel_render_epoch,
     }
 
 
@@ -456,7 +487,6 @@ def _construir_contexto_lista(request):
 def lista(request):
     context = _construir_contexto_lista(request)
 
-    # Si es petición parcial para autorefresco, devolver solo el bloque dinámico
     if request.GET.get("partial") == "1" or request.headers.get("x-requested-with") == "XMLHttpRequest":
         return render(request, "operaciones/_lista_panel.html", context)
 
@@ -464,11 +494,138 @@ def lista(request):
 
 
 @login_required
+def supervisor(request):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return HttpResponseForbidden("Solo el superusuario o staff puede acceder a la vista supervisor.")
+
+    context = _construir_contexto_lista(request)
+
+    if request.GET.get("partial") == "1" or request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return render(request, "operaciones/_supervisor_panel.html", context)
+
+    return render(request, "operaciones/supervisor.html", context)
+
+
+@login_required
+def historial_global(request):
+    fecha = request.GET.get("fecha")
+    turno = request.GET.get("turno", "")
+    area_codigo = request.GET.get("area", "")
+    q = request.GET.get("q", "").strip()
+
+    if fecha:
+        try:
+            fecha_base = timezone.datetime.strptime(fecha, "%Y-%m-%d").date()
+        except ValueError:
+            fecha_base = timezone.localdate()
+    else:
+        fecha_base = timezone.localdate()
+
+    registros = RegistroArea.objects.select_related(
+        "transportista", "area", "usuario_inicio", "usuario_fin"
+    ).filter(fecha_inicio__date=fecha_base)
+
+    if area_codigo:
+        registros = registros.filter(area__codigo=area_codigo)
+
+    if q:
+        registros = registros.filter(
+            Q(transportista__placa__icontains=q) |
+            Q(transportista__conductor__icontains=q) |
+            Q(transportista__empresa__icontains=q)
+        )
+
+    if turno:
+        if turno == "mañana":
+            registros = registros.filter(
+                fecha_inicio__time__gte=dt_time(6, 0),
+                fecha_inicio__time__lt=dt_time(14, 0)
+            )
+        elif turno == "tarde":
+            registros = registros.filter(
+                fecha_inicio__time__gte=dt_time(14, 0),
+                fecha_inicio__time__lt=dt_time(22, 0)
+            )
+        elif turno == "noche":
+            registros = registros.filter(
+                Q(fecha_inicio__time__gte=dt_time(22, 0)) |
+                Q(fecha_inicio__time__lt=dt_time(6, 0))
+            )
+
+    registros = registros.order_by("-fecha_inicio")
+
+    lista_registros = []
+    for r in registros:
+        r.turno_texto = _obtener_turno_desde_hora(timezone.localtime(r.fecha_inicio).time())
+        lista_registros.append(r)
+
+    areas = Area.objects.all()
+
+    return render(
+        request,
+        "operaciones/historial_global.html",
+        {
+            "registros": lista_registros,
+            "areas": areas,
+            "fecha": fecha_base.strftime("%Y-%m-%d"),
+            "turno": turno,
+            "area_codigo": area_codigo,
+            "q": q,
+        },
+    )
+
+
+@login_required
+def resolver_codigo_manual(request):
+    if request.method != "POST":
+        return redirect("pantalla_escaneo")
+
+    codigo = request.POST.get("codigo", "").strip()
+    if not codigo:
+        messages.error(request, "Debes ingresar un código QR o una placa.")
+        return redirect("pantalla_escaneo")
+
+    transportista = Transportista.objects.filter(qr__iexact=codigo).first()
+
+    if not transportista:
+        transportista = Transportista.objects.filter(placa__iexact=codigo).first()
+
+    if not transportista:
+        messages.error(request, f"No se encontró un transportista con código/placa: {codigo}")
+        return redirect("pantalla_escaneo")
+
+    return redirect("scan_qr", codigo_qr=transportista.qr)
+
+
+@login_required
+def pantalla_escaneo(request):
+    area_usuario = _obtener_area_usuario(request.user)
+
+    if area_usuario is None and not request.user.is_superuser:
+        return HttpResponseForbidden("Tu usuario no tiene un área asignada para operar el escaneo.")
+
+    ultimos_movimientos = (
+        Movimiento.objects
+        .filter(usuario=request.user)
+        .select_related("transportista", "area")
+        .order_by("-fecha_hora")[:10]
+    )
+
+    return render(
+        request,
+        "operaciones/pantalla_escaneo.html",
+        {
+            "area_usuario": area_usuario,
+            "ultimos_movimientos": ultimos_movimientos,
+        },
+    )
+
+
+@login_required
 def ingreso(request):
-    # Permitir admin o Entrada
     if not (request.user.is_superuser or _usuario_tiene_area(request.user, "PORTERIA")):
         return HttpResponseForbidden(
-            "Solo el administrador o el personal de porteria puede registrar ingresos."
+            "Solo el administrador o el personal de Entrada puede registrar ingresos."
         )
 
     area_entrada = get_object_or_404(Area, codigo="PORTERIA")
@@ -481,7 +638,6 @@ def ingreso(request):
             transportista.area_actual = area_entrada
             transportista.save()
 
-            # Registro inicial de entrada
             _abrir_registro_area(transportista, area_entrada, request.user)
             _cerrar_registro_area(transportista, "PORTERIA", request.user)
             _registrar_movimiento(transportista, area_entrada, request.user, "INICIO")
@@ -542,7 +698,6 @@ def eliminar_transportista(request, pk):
     if request.method == "POST":
         placa = transportista.placa
 
-        # Liberar puertas activas antes de eliminar
         _liberar_puertas_activas(transportista)
 
         transportista.delete()
@@ -568,7 +723,6 @@ def scan_qr(request, codigo_qr):
         qr=codigo_qr,
     )
 
-    # Actualización automática de parqueadero si aplica
     _actualizar_parqueadero_transportista(transportista)
     transportista.refresh_from_db()
 
@@ -582,22 +736,21 @@ def scan_qr(request, codigo_qr):
                 "titulo": "Usuario sin área asignada",
                 "mensaje": "El usuario no pertenece a un grupo/área autorizada.",
                 "transportista": transportista,
+                "area_usuario": None,
             },
         )
 
     codigo_usuario = area_usuario.codigo
     codigo_actual = transportista.area_actual.codigo
 
-    # 🔒 No permitir cambiar de área si hay otra sin finalizar
     registro_abierto = _obtener_cualquier_registro_abierto(transportista)
     if registro_abierto and registro_abierto.area.codigo != codigo_usuario:
         return _error(
             request,
             transportista,
-            f'El transportista aún tiene el área "{registro_abierto.area.nombre}" en proceso. Debe escanear nuevamente en esa misma área para finalizar registro antes de continuar.'
+            f'El transportista aún tiene el área "{registro_abierto.area.nombre}" en proceso. Debe escanear nuevamente en esa misma área para finalizar antes de continuar.'
         )
 
-    # ---------------- DESPACHOS ----------------
     if codigo_usuario == "DESPACHOS":
         if codigo_actual == "PORTERIA" and not registro_abierto:
             _abrir_registro_area(transportista, area_usuario, request.user)
@@ -611,28 +764,24 @@ def scan_qr(request, codigo_qr):
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
             return _ok(request, transportista, "Fin en Despachos registrado correctamente.")
 
-        return _error(request, transportista, "Despachos solo puede escanear el QR para iniciar registro despues de porteria y para finalizar registro si ya terminó el proceso.")
+        return _error(request, transportista, "Solo puede iniciar Despachos desde Entrada o finalizar si ya está en proceso.")
 
-    # ---------------- PARQUEADERO ----------------
     elif codigo_usuario == "PARQUEADERO":
         return _error(
             request,
             transportista,
-            "Parqueadero ya no se registra por escaneo. El sistema lo asigna automáticamente si pasan 20 minutos sin iniciar Cargue despues de haber finalizado el registro en despachos."
+            "Parqueadero ya no se registra por escaneo. El sistema lo asigna automáticamente si pasan 20 minutos sin iniciar Cargue."
         )
 
-    # ---------------- CARGUE ----------------
     elif codigo_usuario == "CARGUE":
         asignacion_activa = transportista.asignaciones_cargue.filter(activa=True).first()
 
-        # FIN de cargue
         if codigo_actual == "CARGUE" and registro_abierto and asignacion_activa:
             _liberar_puertas_activas(transportista)
             _cerrar_registro_area(transportista, "CARGUE", request.user)
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
             return _ok(request, transportista, "Fin en Cargue registrado correctamente.")
 
-        # INICIO de cargue
         if codigo_actual in ["DESPACHOS", "PARQUEADERO"] and not registro_abierto:
             if request.method == "POST":
                 form = AsignacionCargueForm(request.POST)
@@ -691,9 +840,7 @@ def scan_qr(request, codigo_qr):
             "No puede iniciar/finalizar Cargue desde el estado actual."
         )
 
-    # ---------------- FACTURACION ----------------
     elif codigo_usuario == "FACTURACION":
-        # INICIO facturación
         if codigo_actual == "CARGUE" and not registro_abierto:
             _abrir_registro_area(transportista, area_usuario, request.user)
             transportista.area_actual = area_usuario
@@ -701,7 +848,6 @@ def scan_qr(request, codigo_qr):
             _registrar_movimiento(transportista, area_usuario, request.user, "INICIO")
             return _ok(request, transportista, "Inicio en Facturación registrado correctamente.")
 
-        # FIN facturación
         if codigo_actual == "FACTURACION" and registro_abierto:
             _cerrar_registro_area(transportista, "FACTURACION", request.user)
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
@@ -710,10 +856,9 @@ def scan_qr(request, codigo_qr):
         return _error(
             request,
             transportista,
-            "Facturación solo puede escanear el QR para iniciar registro después del área de Cargue o para finalizar regsitro si ya terminó el proceso."
+            "Facturación solo puede iniciar después de Cargue o finalizarse si ya está en proceso."
         )
 
-    # ---------------- SALIDA (si aún usas usuario SALIDA) ----------------
     elif codigo_usuario == "SALIDA":
         area_salida = Area.objects.get(codigo="SALIDA")
 
@@ -734,14 +879,12 @@ def scan_qr(request, codigo_qr):
         return _error(
             request,
             transportista,
-            "No puede registrar Salida mientras Facturación siga en proceso o si no viene del área facturación."
+            "No puede registrar Salida mientras Facturación siga en proceso o si no viene de Facturación."
         )
 
-    # ---------------- ENTRADA / PORTERIA ----------------
     elif codigo_usuario == "PORTERIA":
         area_salida = Area.objects.get(codigo="SALIDA")
 
-        # Entrada puede registrar la salida final si facturación ya terminó
         if codigo_actual == "FACTURACION" and not registro_abierto:
             _abrir_registro_area(transportista, area_salida, request.user)
             _cerrar_registro_area(transportista, "SALIDA", request.user)
@@ -753,13 +896,13 @@ def scan_qr(request, codigo_qr):
             return _ok(
                 request,
                 transportista,
-                "Salida registrada correctamente por porteria. El vehículo ha finalizado el proceso."
+                "Salida registrada correctamente por Entrada. El vehículo ha finalizado el proceso."
             )
 
         return _error(
             request,
             transportista,
-            "Porteria registra el ingreso inicial por formulario y la salida final solo cuando el vehículo ya terminó facturación."
+            "Entrada registra el ingreso inicial por formulario y la salida final solo cuando el vehículo ya terminó Facturación."
         )
 
     return _error(request, transportista, "Área no reconocida.")
@@ -793,10 +936,6 @@ def historial(request, pk):
         },
     )
 
-
-# ==========================================================
-# GESTIÓN DE USUARIOS (SOLO SUPERUSUARIO)
-# ==========================================================
 
 @login_required
 def usuarios_lista(request):
