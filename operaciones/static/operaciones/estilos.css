@@ -1,46 +1,5 @@
 body {
-    background-color: #f8f9fa;
-}
-
-.titulo-principal {
-    font-weight: 700;
-    font-size: 2rem;
-}
-
-.subtitulo-principal {
-    font-size: 1rem;
-    font-weight: 500;
-}
-
-.titulo-panel {
-    font-weight: 700;
-    font-size: 1.1rem;
-}
-
-.subtitulo-card {
-    font-weight: 700;
-    font-size: 1rem;
-}
-
-.accordion-button {
-    font-weight: 700;
-    font-size: 1rem;
-}
-
-.card-kpi {
-    border-radius: 1rem;
-}
-
-.tiempo-ok {
-    background-color: #d1e7dd;
-    color: #0f5132;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-weight: 700;
-    display: inline-block;
-}
-
-.tiempo-warning {
+    background-color-warning {    background-color: #f8f9fa;
     background-color: #fff3cd;
     color: #664d03;
     padding: 4px 8px;
@@ -88,8 +47,75 @@ video#video-escaneo {
     background: #000;
 }
 
+/* QR miniatura */
+.qr-thumb-img {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: #ffffff;
+    padding: 2px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.qr-thumb-btn:hover .qr-thumb-img {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.15);
+}
+
+.qr-modal-img {
+    max-width: 260px;
+    width: 100%;
+    height: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 10px;
+}
+
 @media (max-width: 768px) {
     .titulo-principal {
         font-size: 1.5rem;
     }
 }
+}
+
+.titulo-principal {
+    font-weight: 700;
+    font-size: 2rem;
+}
+
+.subtitulo-principal {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.titulo-panel {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.subtitulo-card {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.accordion-button {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.card-kpi {
+    border-radius: 1rem;
+}
+
+.tiempo-ok {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    display: inline-block;
+}
+

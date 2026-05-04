@@ -14,24 +14,24 @@
 
     <div class="d-flex gap-2 flex-wrap">
         {% if request.user.is_superuser %}
-            <a href="{% url 'usuarios_lista' %}" class="btn btn-outline-secondary">Usuarios</a>
+            <a href="{% url 'usuarios_lista' %}" class="btn btn-outline-dark btn-sm">Usuarios</a>
         {% endif %}
 
         {% if request.user.is_superuser %}
-            <a href="{% url 'supervisor' %}" class="btn btn-outline-danger">Supervisar</a>
+            <a href="{% url 'supervisor' %}" class="btn btn-outline-danger btn-sm">Supervisar</a>
         {% endif %}
 
-        <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary">Historial</a>
+        <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary btn-sm">Historial</a>
 
         {% if area_usuario or request.user.is_superuser %}
-            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-outline-success">Escanear</a>
+            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-outline-success btn-sm">Escanear</a>
         {% endif %}
 
         {% if request.user.is_superuser or area_usuario and area_usuario.codigo == "PORTERIA" %}
-            <a href="{% url 'ingreso' %}" class="btn btn-primary">+ Nuevo ingreso</a>
+            <a href="{% url 'ingreso' %}" class="btn btn-primary btn-sm">+ Nuevo ingreso</a>
         {% endif %}
 
-        <button id="btn-refrescar-panel" class="btn btn-outline-info" type="button">Actualizar</button>
+        <button id="btn-refrescar-panel" class="btn btn-outline-info btn-sm" type="button">Actualizar</button>
     </div>
 </div>
 
@@ -67,8 +67,14 @@
     <div class="col-lg-2 col-md-4 col-sm-6">
         <div class="card shadow-sm border-0 card-kpi border-danger-subtle">
             <div class="card-body">
-                <div class="text-muted small">Pendientes por cerrar</div>
-                <div class="fs-2 fw-bold">{{ pendientes_cierre_total }}</div>
+                <div class="text-muted small">Estado general</div>
+                <div class="fs-5 fw-bold">
+                    {% if alertas_total > 0 %}
+                        Retrasos detectados
+                    {% else %}
+                        A tiempo
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -110,11 +116,9 @@
                                 {{ t.tiempo_area_texto }}
                             </span>
                         </div>
-                        {% if t.pendiente_cierre %}
-                            <div class="mt-2">
-                                <span class="badge bg-danger">Área pendiente por cerrar</span>
-                            </div>
-                        {% endif %}
+                        <div class="mt-2">
+                            <span class="{{ t.estado_operativo_css }}">{{ t.estado_operativo }}</span>
+                        </div>
                     </div>
                 </div>
             {% empty %}
@@ -159,17 +163,20 @@
 <!-- Pestañas -->
 <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
-        <a class="nav-link {% if vista == 'activos' %}active{% endif %}" href="{% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}">
+        <a href="{% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}"
+           class="nav-link {% if vista == 'activos' %}active{% endif %}">
             Vehículos en proceso
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {% if vista == 'finalizados' %}active{% endif %}" href="{% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}">
+        <a href="{% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}"
+           class="nav-link {% if vista == 'finalizados' %}active{% endif %}">
             Vehículos finalizados
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {% if vista == 'puertas' %}active{% endif %}" href="{% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}">
+        <a href="{% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}"
+           class="nav-link {% if vista == 'puertas' %}active{% endif %}">
             Estado de puertas de cargue
         </a>
     </li>
@@ -189,10 +196,10 @@
                     placeholder="Buscar por placa / conductor / empresa">
             </div>
             <div class="col-auto">
-                <button class="btn btn-outline-primary">Buscar</button>
+                <button class="btn btn-outline-primary btn-sm">Buscar</button>
             </div>
             <div class="col-auto">
-                <a href="{% url 'lista' %}?vista={{ vista }}" class="btn btn-outline-secondary">Limpiar</a>
+                <a href="{% url 'lista' %}?vista={{ vista }}" class="btn btn-outline-secondary btn-sm">Limpiar</a>
             </div>
         </form>
     </div>
@@ -260,7 +267,7 @@
                         <th>Estado actual</th>
                         <th>Siguiente área</th>
                         <th>Tiempo en área</th>
-                        <th>Pendiente</th>
+                        <th>Estado</th>
                         <th>Registros</th>
                         <th>Puertas</th>
                     </tr>
@@ -270,26 +277,16 @@
             {% for t in transportistas %}
                 <tr class="{{ t.fila_css|default:'' }}">
                     <td class="text-center">
-                        <a href="{% url 'qr_png' t.qr %}?v={{ t.qr }}" class="btn btn-sm btn-outline-secondary">Ver QR</a>
-                    </td>
-
-                    {% if vista == 'finalizados' %}
-                        <td class="fw-semibold">{{ t.placa }}</td>
-                        <td>{{ t.conductor }}</td>
-                        <td>{{ t.empresa }}</td>
-                        <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
+                        <button type="button"
+                                class="btn btn-link p-0 border-0 qr-thumb-btn"
+                                data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
+                                data-qr-code="{{ t.qr }}"
+                                title="Ver QR                     </td>
                         <td>
-                            {% if t.fecha_salida %}
-                                {{ t.fecha_salida|localtime|date:"Y-m-d H:i:s" }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-secondary btn-sm">Ver</a>
                             {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-warning">Editar</a>
-                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
+                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
                             {% endif %}
                         </td>
                     {% else %}
@@ -317,17 +314,15 @@
                             </span>
                         </td>
                         <td>
-                            {% if t.pendiente_cierre %}
-                                <span class="badge bg-danger">Área pendiente por cerrar</span>
-                            {% else %}
-                                <span class="badge bg-success">Sin pendiente</span>
-                            {% endif %}
+                            <span class="{{ t.estado_operativo_css }}">
+                                {{ t.estado_operativo }}
+                            </span>
                         </td>
                         <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-secondary btn-sm">Ver</a>
                             {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-warning">Editar</a>
-                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
+                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
                             {% endif %}
                         </td>
                         <td>

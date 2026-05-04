@@ -1,9 +1,13 @@
 {% extends 'operaciones/base.html' %}
-{% block title %}Seguimiento de Transportistas{% endblock %}
-
-{% block content %}
-<div id="panel-auto">
-    {% include 'operaciones/_lista_panel.html' %}
+{% block="" alt="Código QR" class="img-fluid mb-3 qr-modal-img">{% block title %}Seguimiento de Transportistas{% endblock %}
+                <div id="qrModalCode" class="fw-bold fs-5"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="btnImprimirQr" class="btn btn-primary">Imprimir</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -14,6 +18,9 @@
     let timerAuto = null;
     let timerVisual = null;
     let enCurso = false;
+
+    let qrActualSrc = "";
+    let qrActualCodigo = "";
 
     function guardarEstadoUI() {
         return {
@@ -111,17 +118,120 @@
         timerAuto = setInterval(refrescarPanel, actual);
     }
 
+    function abrirModalQr(src, codigo) {
+        qrActualSrc = src;
+        qrActualCodigo = codigo;
+
+        const img = document.getElementById("qrModalImg");
+        const code = document.getElementById("qrModalCode");
+
+        img.src = src;
+        code.textContent = codigo;
+
+        const modalEl = document.getElementById("qrModal");
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+
+    function imprimirQrSticker() {
+        if (!qrActualSrc || !qrActualCodigo) return;
+
+        const ventana = window.open("", "_blank", "width=420,height=620");
+
+        ventana.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="utf-8">
+                <title>Imprimir QR</title>
+                <style>
+                    @page {
+                        size: auto;
+                        margin: 3mm;
+                    }
+
+                    html, body {
+                        margin: 0;
+                        padding: 0;
+                        background: #ffffff;
+                        width: 100%;
+                        height: 100%;
+                        font-family: Arial, sans-serif;
+                    }
+
+                    .sticker {
+                        width: 48mm;
+                        min-height: 55mm;
+                        margin: 0 auto;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        text-align: center;
+                        page-break-inside: avoid;
+                    }
+
+                    .sticker img {
+                        width: 40mm;
+                        height: 40mm;
+                        object-fit: contain;
+                        display: block;
+                    }
+
+                    .codigo {
+                        margin-top: 2mm;
+                        font-size: 10pt;
+                        font-weight: bold;
+                        letter-spacing: 0.5px;
+                        word-break: break-word;
+                    }
+
+                    @media print {
+                        body {
+                            margin: 0;
+                            padding: 0;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="sticker">
+                    <img src="${qrActualSrc}" alt="Código QRclass="codigo">${qrActualCodigo}</div>
+                </div>
+            </body>
+            </html>
+        `);
+
+        ventana.document.close();
+        ventana.focus();
+
+        setTimeout(() => {
+            ventana.print();
+            ventana.close();
+        }, 500);
+    }
+
     document.addEventListener("visibilitychange", reiniciarTemporizadorAuto);
     document.addEventListener("focusin", reiniciarTemporizadorAuto);
     document.addEventListener("focusout", reiniciarTemporizadorAuto);
 
     document.addEventListener("click", function (e) {
-        const btn = e.target.closest("#btn-refrescar-panel");
-        if (btn) {
+        const btnRefresh = e.target.closest("#btn-refrescar-panel");
+        if (btnRefresh) {
             e.preventDefault();
             refrescarPanel();
+            return;
+        }
+
+        const qrThumb = e.target.closest(".qr-thumb-btn");
+        if (qrThumb) {
+            e.preventDefault();
+            abrirModalQr(qrThumb.dataset.qrSrc, qrThumb.dataset.qrCode);
+            return;
         }
     });
+
+    document.getElementById("btnImprimirQr").addEventListener("click", imprimirQrSticker);
 
     reiniciarTemporizadorAuto();
     timerVisual = setInterval(updateLiveTimers, 1000);
@@ -129,3 +239,18 @@
 })();
 </script>
 {% endblock %}
+
+{% block content %}
+<div id="panel-auto">
+    {% include 'operaciones/_lista_panel.html' %}
+</div>
+
+<!-- Modal QR -->
+<div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="qrModalLabel">Código QR del transportista</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body text-center">
