@@ -1,5 +1,11 @@
 {% extends 'operaciones/base.html' %}
-{% block="" alt="Código QR" class="img-fluid mb-3 qr-modal-img">{% block title %}Seguimiento de Transportistas{% endblock %}
+{% block title %}Seguimiento de Transportistas{% endblock class="modal-content">{% block title %}Seguimiento de Transportistas{% endblock %}
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="qrModalLabel">Código QR del transportista</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="qrModalImg" src="" alt="Código QR" class="img-fluid mb-3 qr-modal-img">
                 <div id="qrModalCode" class="fw-bold fs-5"></div>
             </div>
             <div class="modal-footer">
@@ -231,7 +237,10 @@
         }
     });
 
-    document.getElementById("btnImprimirQr").addEventListener("click", imprimirQrSticker);
+    const btnImprimir = document.getElementById("btnImprimirQr");
+    if (btnImprimir) {
+        btnImprimir.addEventListener("click", imprimirQrSticker);
+    }
 
     reiniciarTemporizadorAuto();
     timerVisual = setInterval(updateLiveTimers, 1000);
@@ -248,9 +257,3 @@
 <!-- Modal QR -->
 <div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="qrModalLabel">Código QR del transportista</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body text-center">
