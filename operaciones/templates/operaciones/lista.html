@@ -1,6 +1,42 @@
 {% extends 'operaciones/base.html' %}
 
-ActualSrc = "";{% block title %}
+{% block title %}Seguimiento de Transportistas{% endblock title %}
+
+{% block content %}
+<div id="panel-auto">
+    {% include 'operaciones/_lista_panel.html' %}
+</div>
+
+<!-- Modal QR -->
+<div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="qrModalLabel">Código QR del transportista</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="qrModalImg" src="" alt="Código QR" class="img-fluid mb-3 qr-modal-img">
+                <div id="qrModalCode" class="fw-bold fs-5"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="btnImprimirQr" class="btn btn-primary">Imprimir</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const panelId = "panel-auto";
+    let intervalVisible = 2000;
+    let intervalHidden = 8000;
+    let timerAuto = null;
+    let timerVisual = null;
+    let enCurso = false;
+
+    let qrActualSrc = "";
     let qrActualCodigo = "";
 
     function guardarEstadoUI() {
@@ -223,40 +259,3 @@ ActualSrc = "";{% block title %}
 })();
 </script>
 {% endblock content %}
-Seguimiento de Transportistas
-{% endblock title %}
-
-{% block content %}
-<div id="panel-auto">
-    {% include 'operaciones/_lista_panel.html' %}
-</div>
-
-<!-- Modal QR -->
-<div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="qrModalLabel">Código QR del transportista</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body text-center">
-                <img id="qrModalImg" src="" alt="Código QR" class="img-fluid mb-3 qr-modal-img">
-                <div id="qrModalCode" class="fw-bold fs-5"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" id="btnImprimirQr" class="btn btn-primary">Imprimir</button>
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-(function () {
-    const panelId = "panel-auto";
-    let intervalVisible = 2000;
-    let intervalHidden = 8000;
-    let timerAuto = null;
-    let timerVisual = null;
-    let enCurso = false;
-    })
