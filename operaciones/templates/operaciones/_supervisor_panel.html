@@ -1,0 +1,155 @@
+{% load tz %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Vista Supervisor</h2>
+        <p class="text-muted mb-0">KPIs en tiempo real, alertas, pendientes y ranking de demoras.</p>
+        <div id="ultima-actualizacion-supervisor" class="small text-muted mt-1" data-timestamp="{{ panel_render_epoch }}">
+            Actualizado hace un instante
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary">Historial</a>
+        <a href="{% url 'lista' %}" class="btn btn-outline-secondary">Panel principal</a>
+        <button id="btn-refrescar-supervisor" class="btn btn-outline-info" type="button">Actualizar</button>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
+            <div class="card-body">
+                <div class="text-muted small">En proceso</div>
+                <div class="fs-2 fw-bold">{{ activos_count }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
+            <div class="card-body">
+                <div class="text-muted small">Finalizados</div>
+                <div class="fs-2 fw-bold">{{ finalizados_count }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi border-warning-subtle">
+            <div class="card-body">
+                <div class="text-muted small">Alertas</div>
+                <div class="fs-2 fw-bold">{{ alertas_total }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi border-danger-subtle">
+            <div class="card-body">
+                <div class="text-muted small">Pendientes cierre</div>
+                <div class="fs-2 fw-bold">{{ pendientes_cierre_total }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
+            <div class="card-body">
+                <div class="text-muted small">Promedio actual</div>
+                <div class="fw-bold">{{ kpi_promedio_texto }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
+            <div class="card-body">
+                <div class="text-muted small">Tiempo total actual</div>
+                <div class="fw-bold">{{ kpi_total_texto }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3">Top de demoras</h5>
+                <div class="d-flex flex-column gap-3">
+                    {% for t in top_demoras %}
+                        <div class="border rounded-3 p-3 {{ t.fila_css }}">
+                            <div class="fw-bold">{{ t.placa }} · {{ t.conductor }}</div>
+                            <div class="small text-muted">{{ t.area_actual.nombre }} · {{ t.empresa }}</div>
+                            <div class="mt-2">
+                                <span class="live-timer {{ t.tiempo_css }}"
+                                      data-base-seconds="{{ t.tiempo_area_segundos }}"
+                                      data-rendered-at="{{ panel_render_epoch }}">
+                                    {{ t.tiempo_area_texto }}
+                                </span>
+                            </div>
+                            {% if t.pendiente_cierre %}
+                                <div class="mt-2">
+                                    <span class="badge bg-danger">Área pendiente por cerrar</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% empty %}
+                        <div class="text-muted">No hay datos suficientes.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3">Vehículos con atención inmediata</h5>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Placa</th>
+                                <th>Área</th>
+                                <th>Tiempo</th>
+                                <th>Pendiente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in top_demoras %}
+                                <tr class="{{ t.fila_css }}">
+                                    <td class="fw-semibold">{{ t.placa }}</td>
+                                    <td>{{ t.area_actual.nombre }}</td>
+                                    <td>
+                                        <span class="live-timer {{ t.tiempo_css }}"
+                                              data-base-seconds="{{ t.tiempo_area_segundos }}"
+                                              data-rendered-at="{{ panel_render_epoch }}">
+                                            {{ t.tiempo_area_texto }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if t.pendiente_cierre %}
+                                            <span class="badge bg-danger">Sí</span>
+                                        {% else %}
+                                            <span class="badge bg-success">No</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Sin alertas en este momento.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <hr>
+
+                <h6 class="fw-bold">Indicadores de alerta</h6>
+                <ul class="mb-0">
+                    <li>Cuello de botella actual: <strong>{{ cuello_botella_area|default:"-" }}</strong> ({{ cuello_botella_count }})</li>
+                    <li>Área con más alertas: <strong>{{ area_alerta_top|default:"-" }}</strong> ({{ area_alerta_count }})</li>
+                    <li>Pendientes por cerrar: <strong>{{ pendientes_cierre_total }}</strong></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

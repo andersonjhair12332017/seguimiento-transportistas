@@ -7,109 +7,136 @@
         <p class="text-muted mb-0 subtitulo-principal">
             Control de ingreso, tiempos por área, puertas de cargue y trazabilidad.
         </p>
+        <div id="ultima-actualizacion" class="small text-muted mt-1" data-timestamp="{{ panel_render_epoch }}">
+            Actualizado hace un instante
+        </div>
     </div>
 
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         {% if request.user.is_superuser %}
-            <a href="{% url 'usuarios_lista' %}" class="btn btn-outline-secondary">Usuarios</a>
+            <a href="{% url 'usuarios_lista' %}" class="btn btn-outline-dark">Usuarios</a>
+        {% endif %}
+
+        {% if request.user.is_superuser or request.user.is_staff %}
+            <a href="{% url 'supervisor' %}" class="btn btn-outline-danger">Supervisor</a>
+        {% endif %}
+
+        <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary">Historial</a>
+
+        {% if area_usuario or request.user.is_superuser %}
+            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-primary">Escanear</a>
         {% endif %}
 
         {% if request.user.is_superuser or area_usuario and area_usuario.codigo == "PORTERIA" %}
-            <a href="{% url 'ingreso' %}" class="btn btn-primary">+ Nuevo ingreso</a>
+            <a href="{% url 'ingreso' %}" class="btn btn-success">+ Nuevo ingreso</a>
         {% endif %}
+
+        <button id="btn-refrescar-panel" class="btn btn-outline-info" type="button">Actualizar</button>
     </div>
 </div>
 
-<!-- Indicadores operativos -->
+<!-- KPIs -->
 <div class="row g-3 mb-4">
-    <div class="col-lg-4">
-        <div class="card shadow-sm border-0">
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
             <div class="card-body">
-                <h5 class="titulo-panel mb-2">Alertas automáticas</h5>
-                <p class="mb-0">
-                    Vehículos con retraso: <strong>{{ alertas_total }}</strong>
-                </p>
+                <div class="text-muted small">En proceso</div>
+                <div class="fs-2 fw-bold">{{ activos_count }}</div>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-4">
-        <div class="card shadow-sm border-0 indicador-bottleneck">
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
             <div class="card-body">
-                <h5 class="titulo-panel mb-2">Cuello de botella actual</h5>
-                <p class="mb-0">
-                    Área con más vehículos:
-                    <strong>{{ cuello_botella_area|default:"-" }}</strong>
-                    ({{ cuello_botella_count }})
-                </p>
+                <div class="text-muted small">Finalizados</div>
+                <div class="fs-2 fw-bold">{{ finalizados_count }}</div>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-4">
-        <div class="card shadow-sm border-0">
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi border-warning-subtle">
             <div class="card-body">
-                <h5 class="titulo-panel mb-2">Área con más alertas</h5>
-                <p class="mb-0">
-                    <strong>{{ area_alerta_top|default:"-" }}</strong>
-                    ({{ area_alerta_count }})
-                </p>
+                <div class="text-muted small">Alertas</div>
+                <div class="fs-2 fw-bold">{{ alertas_total }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi border-danger-subtle">
+            <div class="card-body">
+                <div class="text-muted small">Pendientes por cerrar</div>
+                <div class="fs-2 fw-bold">{{ pendientes_cierre_total }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
+            <div class="card-body">
+                <div class="text-muted small">Promedio actual</div>
+                <div class="fw-bold">{{ kpi_promedio_texto }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card shadow-sm border-0 card-kpi">
+            <div class="card-body">
+                <div class="text-muted small">Cuello de botella</div>
+                <div class="fw-bold">{{ cuello_botella_area|default:"-" }}</div>
+                <div class="small text-muted">({{ cuello_botella_count }})</div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Paneles desplegables -->
-<div class="accordion mb-4" id="accordionResumen">
-    <!-- Estados de vehículos -->
-    <div class="accordion-item">
-        <h2 class="accordion-header" id="headingEstados">
-            <button class="accordion-button" type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#collapseEstados"
-                    aria-expanded="true"
-                    aria-controls="collapseEstados">
-                Estados de vehículos
-            </button>
-        </h2>
-        <div id="collapseEstados" class="accordion-collapse collapse show"
-             aria-labelledby="headingEstados">
-            <div class="accordion-body">
-                <div class="row g-3">
-                    <div class="col-lg-3 col-md-6">
-                        <div class="card card-kpi text-center">
-                            <div class="card-body">
-                                <div class="text-muted small subtitulo-card">Vehículos en proceso</div>
-                                <div class="fs-2 fw-bold">{{ activos_count }}</div>
-                            </div>
+<!-- Ranking de demoras -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="fw-bold mb-3">Ranking / Top de demoras</h5>
+        <div class="row g-3">
+            {% for t in top_demoras %}
+                <div class="col-lg-4 col-md-6">
+                    <div class="border rounded-3 p-3 h-100 {{ t.fila_css }}">
+                        <div class="fw-bold">{{ t.placa }}</div>
+                        <div class="small text-muted">{{ t.conductor }} · {{ t.area_actual.nombre }}</div>
+                        <div class="mt-2">
+                            <span class="live-timer {{ t.tiempo_css }}"
+                                  data-base-seconds="{{ t.tiempo_area_segundos }}"
+                                  data-rendered-at="{{ panel_render_epoch }}">
+                                {{ t.tiempo_area_texto }}
+                            </span>
                         </div>
-                    </div>
-
-                    <div class="col-lg-3 col-md-6">
-                        <div class="card card-kpi text-center">
-                            <div class="card-body">
-                                <div class="text-muted small subtitulo-card">Vehículos finalizados</div>
-                                <div class="fs-2 fw-bold">{{ finalizados_count }}</div>
+                        {% if t.pendiente_cierre %}
+                            <div class="mt-2">
+                                <span class="badge bg-danger">Área pendiente por cerrar</span>
                             </div>
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
-            </div>
+            {% empty %}
+                <div class="col-12 text-muted">No hay vehículos en proceso para calcular ranking.</div>
+            {% endfor %}
         </div>
     </div>
+</div>
 
-    <!-- Vehículos en áreas -->
+<!-- Vehículos en áreas -->
+<div class="accordion mb-4" id="accordionResumen">
     <div class="accordion-item">
         <h2 class="accordion-header" id="headingAreas">
-            <button class="accordion-button collapsed" type="button"
+            <button class="accordion-button" type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#collapseAreas"
-                    aria-expanded="false"
+                    aria-expanded="true"
                     aria-controls="collapseAreas">
                 Vehículos en áreas
             </button>
         </h2>
-        <div id="collapseAreas" class="accordion-collapse collapse"
+        <div id="collapseAreas" class="accordion-collapse collapse show"
              aria-labelledby="headingAreas">
             <div class="accordion-body">
                 <div class="row g-3">
@@ -159,7 +186,7 @@
                     name="q"
                     value="{{ q }}"
                     class="form-control"
-                    placeholder="Buscar por placa">
+                    placeholder="Buscar por placa / conductor / empresa">
             </div>
             <div class="col-auto">
                 <button class="btn btn-outline-primary">Buscar</button>
@@ -175,7 +202,7 @@
 {% if vista == 'puertas' %}
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
-        <h4 class="titulo-panel mb-3">Estado de puertas de cargue</h4>
+        <h4 class="fw-bold mb-3">Estado de puertas de cargue</h4>
         <div class="row g-3">
             {% for p in tablero_puertas %}
                 <div class="col-lg-2 col-md-3 col-sm-4 col-6">
@@ -233,14 +260,15 @@
                         <th>Estado actual</th>
                         <th>Siguiente área</th>
                         <th>Tiempo en área</th>
+                        <th>Pendiente</th>
                         <th>Registros</th>
-                        <th>Puertas de cargue</th>
+                        <th>Puertas</th>
                     </tr>
                 {% endif %}
             </thead>
             <tbody>
             {% for t in transportistas %}
-                <tr class="estado-{{ t.area_actual.codigo }}">
+                <tr class="{{ t.fila_css|default:'' }}">
                     <td class="text-center">
                         <a href="{% url 'qr_png' t.qr %}?v={{ t.qr }}" target="_blank" class="btn btn-sm btn-outline-secondary">
                             Ver QR
@@ -260,10 +288,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
-
+                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-dark">Ver</a>
                             {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-warning">Editar</a>
+                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
                                 <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
                             {% endif %}
                         </td>
@@ -285,15 +312,23 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span class="{{ t.tiempo_css }}">
+                            <span class="live-timer {{ t.tiempo_css }}"
+                                  data-base-seconds="{{ t.tiempo_area_segundos }}"
+                                  data-rendered-at="{{ panel_render_epoch }}">
                                 {{ t.tiempo_area_texto }}
                             </span>
                         </td>
                         <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
-
+                            {% if t.pendiente_cierre %}
+                                <span class="badge bg-danger">Área pendiente por cerrar</span>
+                            {% else %}
+                                <span class="badge bg-success">Sin pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-dark">Ver</a>
                             {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-warning">Editar</a>
+                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
                                 <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
                             {% endif %}
                         </td>
@@ -312,7 +347,7 @@
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="{% if vista == 'finalizados' %}7{% else %}10{% endif %}" class="text-center text-muted py-4">
+                    <td colspan="{% if vista == 'finalizados' %}7{% else %}11{% endif %}" class="text-center text-muted py-4">
                         No hay vehículos en esta vista.
                     </td>
                 </tr>

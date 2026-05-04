@@ -1,31 +1,51 @@
 {% extends 'operaciones/base.html' %}
-{% block title %}Resultado del escaneo{% endblock %}
+{% block title %}Resultado de escaneo{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-lg-7">
-        <div class="card shadow-sm border-0">
-            <div class="card-body p-4 text-center">
-                {% if ok %}
-                    <div class="display-4 mb-3">✅</div>
-                    <h2 class="text-success fw-bold">{{ titulo }}</h2>
-                {% else %}
-                    <div class="display-4 mb-3">⚠️</div>
-                    <h2 class="text-danger fw-bold">{{ titulo }}</h2>
-                {% endif %}
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 {% if ok %}border-success{% else %}border-danger{% endif %}">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h3 class="fw-bold mb-0">
+                        {% if ok %}✅ {{ titulo }}{% else %}❌ {{ titulo }}{% endif %}
+                    </h3>
+                    <div class="small text-muted">
+                        {% if area_usuario %}
+                            Área: <strong>{{ area_usuario.nombre }}</strong>
+                        {% endif %}
+                    </div>
+                </div>
 
-                <p class="lead mt-3">{{ mensaje }}</p>
+                <div class="alert {% if ok %}alert-success{% else %}alert-danger{% endif %}">
+                    {{ mensaje }}
+                </div>
 
-                {% if transportista %}
-                    <hr>
-                    <p class="mb-1"><strong>Placa:</strong> {{ transportista.placa }}</p>
-                    <p class="mb-1"><strong>Conductor:</strong> {{ transportista.conductor }}</p>
-                    <p class="mb-1"><strong>Empresa:</strong> {{ transportista.empresa }}</p>
-                    <p class="mb-0"><strong>Área actual:</strong> {{ transportista.area_actual.nombre }}</p>
-                {% endif %}
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3">
+                            <div class="text-muted small">Placa</div>
+                            <div class="fw-bold">{{ transportista.placa }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3">
+                            <div class="text-muted small">Conductor</div>
+                            <div class="fw-bold">{{ transportista.conductor }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3">
+                            <div class="text-muted small">Estado actual</div>
+                            <div class="fw-bold">{{ transportista.area_actual.nombre }}</div>
+                        </div>
+                    </div>
+                </div>
 
-                <div class="mt-4">
-                    <a href="{% url 'lista' %}" class="btn btn-primary">Volver al panel</a>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'pantalla_escaneo' %}" class="btn btn-primary">Volver a escanear</a>
+                    <a href="{% url 'lista' %}" class="btn btn-outline-secondary">Ir al panel</a>
+                    <a href="{% url 'historial' transportista.id %}" class="btn btn-outline-dark">Ver historial</a>
                 </div>
             </div>
         </div>

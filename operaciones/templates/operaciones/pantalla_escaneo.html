@@ -1,0 +1,233 @@
+{% extends 'operaciones/base.html' %}
+{% load tz %}
+{% block title %}Pantalla de escaneo{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Pantalla de escaneo</h2>
+        <p class="text-muted mb-0">
+            {% if area_usuario %}
+                Área actual: <strong>{{ area_usuario.nombre }}</strong>
+            {% else %}
+                Usuario sin área asignada
+            {% endif %}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'lista' %}" class="btn btn-outline-secondary">Volver al panel</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-3">
+                <h4 class="fw-bold mb-3">Escaneo con cámara</h4>
+
+                <div class="ratio ratio-4x3 bg-dark rounded overflow-hidden mb-3">
+                    <video id="video-escaneo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;"></video>
+                </div>
+
+                <canvas id="canvas-escaneo" class="d-none"></canvas>
+
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button id="btn-iniciar-escaneo" class="btn btn-primary" type="button">
+                        Iniciar escaneo
+                    </button>
+                    <button id="btn-detener-escaneo" class="btn btn-outline-secondary" type="button" disabled>
+                        Detener
+                    </button>
+                </div>
+
+                <div id="estado-escaneo" class="alert alert-info mb-0">
+                    Presiona <strong>Iniciar escaneo</strong> para activar la cámara.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-3">
+                <h4 class="fw-bold mb-3">Ingreso manual de QR / placa</h4>
+
+                <form id="form-manual-qr" action="{% url 'resolver_codigo_manual' %}" method="post" class="d-flex flex-column gap-3">
+                    {% csrf_token %}
+                    <div>
+                        <label class="form-label">Código QR o placa</label>
+                        <input
+                            id="input-codigo-qr"
+                            name="codigo"
+                            type="text"
+                            class="form-control"
+                            placeholder="Ej: A1B2C3D4 o QRY132"
+                            autocomplete="off"
+                            required>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success">Procesar</button>
+                        <button type="button" id="btn-limpiar-codigo" class="btn btn-outline-secondary">Limpiar</button>
+                    </div>
+                </form>
+
+                <hr>
+
+                <p class="small text-muted mb-0">
+                    Si el navegador no soporta lectura por cámara, usa el ingreso manual.
+                </p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-3">
+                <h4 class="fw-bold mb-3">Últimos procesados</h4>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Placa</th>
+                                <th>Área</th>
+                                <th>Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for m in ultimos_movimientos %}
+                            <tr>
+                                <td class="fw-semibold">{{ m.transportista.placa }}</td>
+                                <td>{{ m.area.nombre }}</td>
+                                <td>{{ m.fecha_hora|localtime|date:"H:i:s" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">Aún no hay movimientos registrados por este usuario.</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const video = document.getElementById("video-escaneo");
+    const canvas = document.getElementById("canvas-escaneo");
+    const ctx = canvas.getContext("2d");
+    const btnIniciar = document.getElementById("btn-iniciar-escaneo");
+    const btnDetener = document.getElementById("btn-detener-escaneo");
+    const estado = document.getElementById("estado-escaneo");
+    const inputCodigo = document.getElementById("input-codigo-qr");
+    const btnLimpiar = document.getElementById("btn-limpiar-codigo");
+
+    let stream = null;
+    let detector = null;
+    let escaneando = false;
+    let rafId = null;
+
+    function irAProcesar(codigo) {
+        if (!codigo) return;
+        inputCodigo.value = (codigo || "").trim().toUpperCase();
+        document.getElementById("form-manual-qr").submit();
+    }
+
+    function setEstado(tipo, mensaje) {
+        estado.className = `alert alert-${tipo} mb-0`;
+        estado.innerHTML = mensaje;
+    }
+
+    async function iniciarEscaneo() {
+        try {
+            if (!("BarcodeDetector" in window)) {
+                setEstado("warning", "Este navegador no soporta lectura nativa de QR. Usa el ingreso manual.");
+                return;
+            }
+
+            detector = new BarcodeDetector({ formats: ["qr_code"] });
+
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: "environment" } },
+                audio: false
+            });
+
+            video.srcObject = stream;
+            escaneando = true;
+
+            btnIniciar.disabled = true;
+            btnDetener.disabled = false;
+
+            setEstado("info", "Cámara activa. Apunta al código QR del transportista.");
+            esperarVideoYEscanear();
+        } catch (error) {
+            console.error(error);
+            setEstado("danger", "No fue posible acceder a la cámara. Verifica permisos o usa el ingreso manual.");
+        }
+    }
+
+    function detenerEscaneo() {
+        escaneando = false;
+
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+
+        video.srcObject = null;
+        btnIniciar.disabled = false;
+        btnDetener.disabled = true;
+
+        setEstado("secondary", "Escaneo detenido.");
+    }
+
+    function esperarVideoYEscanear() {
+        if (video.readyState >= 2) {
+            escanearLoop();
+        } else {
+            requestAnimationFrame(esperarVideoYEscanear);
+        }
+    }
+
+    async function escanearLoop() {
+        if (!escaneando) return;
+
+        try {
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const barcodes = await detector.detect(canvas);
+
+                if (barcodes && barcodes.length > 0) {
+                    const rawValue = barcodes[0].rawValue || "";
+                    detenerEscaneo();
+                    irAProcesar(rawValue);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error("Error leyendo QR:", error);
+        }
+
+        rafId = requestAnimationFrame(escanearLoop);
+    }
+
+    btnLimpiar.addEventListener("click", function () {
+        inputCodigo.value = "";
+        inputCodigo.focus();
+    });
+
+    btnIniciar.addEventListener("click", iniciarEscaneo);
+    btnDetener.addEventListener("click", detenerEscaneo);
+    window.addEventListener("beforeunload", detenerEscaneo);
+})();
+</script>
+{% endblock %}

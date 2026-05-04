@@ -1,38 +1,19 @@
 {% extends 'operaciones/base.html' %}
-{% block title %}Seguimiento de Transportistas{% endblock %}
+{% block title %}Vista Supervisor{% endblock %}
 
 {% block content %}
-<div id="panel-auto">
-    {% include 'operaciones/_lista_panel.html' %}
+<div id="panel-supervisor">
+    {% include 'operaciones/_supervisor_panel.html' %}
 </div>
 
 <script>
 (function () {
-    const panelId = "panel-auto";
+    const panelId = "panel-supervisor";
     let intervalVisible = 2000;
-    let intervalHidden = 8000;
+    let intervalHidden = 10000;
     let timerAuto = null;
     let timerVisual = null;
     let enCurso = false;
-
-    function guardarEstadoUI() {
-        return {
-            collapseAreas: document.getElementById("collapseAreas")?.classList.contains("show") || false
-        };
-    }
-
-    function restaurarEstadoUI(estado) {
-        const collapseAreas = document.getElementById("collapseAreas");
-        const btnAreas = document.querySelector('[data-bs-target="#collapseAreas"]');
-
-        if (collapseAreas) {
-            collapseAreas.classList.toggle("show", !!estado.collapseAreas);
-        }
-        if (btnAreas) {
-            btnAreas.classList.toggle("collapsed", !estado.collapseAreas);
-            btnAreas.setAttribute("aria-expanded", estado.collapseAreas ? "true" : "false");
-        }
-    }
 
     function construirUrlParcial() {
         const url = new URL(window.location.href);
@@ -42,7 +23,7 @@
     }
 
     function updateTimestampBadge() {
-        const el = document.getElementById("ultima-actualizacion");
+        const el = document.getElementById("ultima-actualizacion-supervisor");
         if (!el) return;
         const ts = Number(el.dataset.timestamp || 0);
         if (!ts) return;
@@ -73,14 +54,8 @@
         if (enCurso) return;
         if (document.hidden) return;
 
-        const activo = document.activeElement;
-        if (activo && ["INPUT", "TEXTAREA", "SELECT"].includes(activo.tagName)) {
-            return;
-        }
-
         enCurso = true;
         const panel = document.getElementById(panelId);
-        const estado = guardarEstadoUI();
 
         try {
             const response = await fetch(construirUrlParcial(), {
@@ -91,15 +66,14 @@
             });
 
             if (!response.ok) {
-                throw new Error("No fue posible actualizar el panel.");
+                throw new Error("No fue posible actualizar supervisor.");
             }
 
             const html = await response.text();
             panel.innerHTML = html;
-            restaurarEstadoUI(estado);
             updateLiveTimers();
         } catch (error) {
-            console.error("Error al actualizar el panel:", error);
+            console.error("Error al actualizar supervisor:", error);
         } finally {
             enCurso = false;
         }
@@ -112,11 +86,9 @@
     }
 
     document.addEventListener("visibilitychange", reiniciarTemporizadorAuto);
-    document.addEventListener("focusin", reiniciarTemporizadorAuto);
-    document.addEventListener("focusout", reiniciarTemporizadorAuto);
 
     document.addEventListener("click", function (e) {
-        const btn = e.target.closest("#btn-refrescar-panel");
+        const btn = e.target.closest("#btn-refrescar-supervisor");
         if (btn) {
             e.preventDefault();
             refrescarPanel();

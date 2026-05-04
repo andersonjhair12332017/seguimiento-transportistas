@@ -2,10 +2,23 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # Panel principal
     path("", views.lista, name="lista"),
+
+    # Ingreso y escaneo
     path("ingreso/", views.ingreso, name="ingreso"),
+    path("escanear/", views.pantalla_escaneo, name="pantalla_escaneo"),
     path("scan/<str:codigo_qr>/", views.scan_qr, name="scan_qr"),
+    path("resolver-codigo/", views.resolver_codigo_manual, name="resolver_codigo_manual"),
+
+    # Historial
     path("historial/<int:pk>/", views.historial, name="historial"),
+    path("historial/registros/", views.historial_global, name="historial_global"),
+
+    # Vista supervisor
+    path("supervisor/", views.supervisor, name="supervisor"),
+
+    # QR dinámico
     path("qr/<str:codigo_qr>.png", views.qr_png, name="qr_png"),
 
     # Transportistas

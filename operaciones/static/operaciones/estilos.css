@@ -1,3 +1,7 @@
+body {
+    background-color: #f8f9fa;
+}
+
 .titulo-principal {
     font-weight: 700;
     font-size: 2rem;
@@ -21,6 +25,10 @@
 .accordion-button {
     font-weight: 700;
     font-size: 1rem;
+}
+
+.card-kpi {
+    border-radius: 1rem;
 }
 
 .tiempo-ok {
@@ -50,6 +58,38 @@
     display: inline-block;
 }
 
+.fila-ok > td {
+    background-color: rgba(209, 231, 221, 0.55) !important;
+}
+
+.fila-warning > td {
+    background-color: rgba(255, 243, 205, 0.60) !important;
+}
+
+.fila-danger > td {
+    background-color: rgba(248, 215, 218, 0.70) !important;
+}
+
 .indicador-bottleneck {
     border-left: 6px solid #dc3545;
+}
+
+.estado-badge {
+    letter-spacing: 0.2px;
+}
+
+.tabla-panel {
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+}
+
+video#video-escaneo {
+    background: #000;
+}
+
+@media (max-width: 768px) {
+    .titulo-principal {
+        font-size: 1.5rem;
+    }
 }
