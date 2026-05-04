@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -31,7 +31,7 @@ from .models import (
 
 # Umbrales de alerta por área (minutos)
 ALERTA_UMBRAL = {
-    "PORTERIA": 10,      # visible como Entrada
+    "PORTERIA": 10,
     "DESPACHOS": 20,
     "PARQUEADERO": 20,
     "CARGUE": 60,
@@ -191,25 +191,17 @@ def _actualizar_parqueadero_automatico():
 
 
 def _generar_qr_para_transportista(request, transportista):
-    """
-    Compatibilidad histórica: ya no generamos archivo local.
-    """
     return None
 
 
 def qr_png(request, codigo_qr):
-    """
-    Genera el QR dinámicamente para no depender de archivos locales.
-    """
     transportista = get_object_or_404(Transportista, qr=codigo_qr)
 
     base_url = getattr(settings, "PUBLIC_BASE_URL", None)
     if base_url:
         url_scan = f"{base_url}{reverse('scan_qr', args=[transportista.qr])}"
     else:
-        url_scan = request.build_absolute_uri(
-            reverse("scan_qr", args=[transportista.qr])
-        )
+        url_scan = request.build_absolute_uri(reverse("scan_qr", args=[transportista.qr]))
 
     qr_img = qrcode.make(url_scan)
     buffer = BytesIO()
@@ -326,6 +318,16 @@ def _error(request, transportista, mensaje):
     )
 
 
+def _obtener_turno_desde_hora(hora_valor):
+    """
+    Día   -> 06:00:01 a 17:59:59
+    Noche -> 18:00:00 a 06:00:00
+    """
+    if hora_valor >= dt_time(18, 0, 0) or hora_valor <= dt_time(6, 0, 0):
+        return "noche"
+    return "día"
+
+
 def _marcar_estado_transportista(transportista, panel_render_epoch):
     minutos = _tiempo_en_area_minutos(transportista)
     css, estado, fila_css = _clase_tiempo(transportista.area_actual.codigo, minutos)
@@ -344,14 +346,6 @@ def _marcar_estado_transportista(transportista, panel_render_epoch):
     )
     transportista.area_pendiente_nombre = registro_abierto.area.nombre if registro_abierto else None
     return transportista
-
-
-def _obtener_turno_desde_hora(hora_valor):
-    if dt_time(6, 0) <= hora_valor < dt_time(14, 0):
-        return "mañana"
-    elif dt_time(14, 0) <= hora_valor < dt_time(22, 0):
-        return "tarde"
-    return "noche"
 
 
 def _construir_contexto_lista(request):
@@ -460,6 +454,8 @@ def _construir_contexto_lista(request):
     total_segundos_activos = sum(t.tiempo_area_segundos for t in activos_qs) if activos_qs else 0
     promedio_segundos_activos = int(total_segundos_activos / len(activos_qs)) if activos_qs else 0
 
+    turno_actual = _obtener_turno_desde_hora(timezone.localtime().time())
+
     return {
         "transportistas": transportistas,
         "areas": areas,
@@ -479,6 +475,7 @@ def _construir_contexto_lista(request):
         "top_demoras": top_demoras,
         "kpi_promedio_texto": _formatear_segundos_hhmmss(promedio_segundos_activos),
         "kpi_total_texto": _formatear_segundos_hhmmss(total_segundos_activos),
+        "turno_actual": turno_actual,
         "panel_render_epoch": panel_render_epoch,
     }
 
@@ -495,8 +492,9 @@ def lista(request):
 
 @login_required
 def supervisor(request):
-    if not (request.user.is_superuser or request.user.is_staff):
-        return HttpResponseForbidden("Solo el superusuario o staff puede acceder a la vista supervisor.")
+    if not request.user.is_superuser:
+        messages.error(request, "Solo el administrador puede acceder a la vista supervisor.")
+        return redirect("lista")
 
     context = _construir_contexto_lista(request)
 
@@ -535,28 +533,14 @@ def historial_global(request):
             Q(transportista__empresa__icontains=q)
         )
 
-    if turno:
-        if turno == "mañana":
-            registros = registros.filter(
-                fecha_inicio__time__gte=dt_time(6, 0),
-                fecha_inicio__time__lt=dt_time(14, 0)
-            )
-        elif turno == "tarde":
-            registros = registros.filter(
-                fecha_inicio__time__gte=dt_time(14, 0),
-                fecha_inicio__time__lt=dt_time(22, 0)
-            )
-        elif turno == "noche":
-            registros = registros.filter(
-                Q(fecha_inicio__time__gte=dt_time(22, 0)) |
-                Q(fecha_inicio__time__lt=dt_time(6, 0))
-            )
-
-    registros = registros.order_by("-fecha_inicio")
-
     lista_registros = []
-    for r in registros:
-        r.turno_texto = _obtener_turno_desde_hora(timezone.localtime(r.fecha_inicio).time())
+    for r in registros.order_by("-fecha_inicio"):
+        hora_local = timezone.localtime(r.fecha_inicio).time()
+        r.turno_texto = _obtener_turno_desde_hora(hora_local)
+
+        if turno and r.turno_texto != turno:
+            continue
+
         lista_registros.append(r)
 
     areas = Area.objects.all()
@@ -602,21 +586,56 @@ def pantalla_escaneo(request):
     area_usuario = _obtener_area_usuario(request.user)
 
     if area_usuario is None and not request.user.is_superuser:
-        return HttpResponseForbidden("Tu usuario no tiene un área asignada para operar el escaneo.")
+        messages.error(request, "Tu usuario no tiene un área asignada para operar el escaneo.")
+        return redirect("lista")
 
-    ultimos_movimientos = (
-        Movimiento.objects
-        .filter(usuario=request.user)
-        .select_related("transportista", "area")
-        .order_by("-fecha_hora")[:10]
+    placa = request.GET.get("placa", "").strip()
+    nombre = request.GET.get("nombre", "").strip()
+    registro_inicio = request.GET.get("registro_inicio", "").strip()
+    registro_fin = request.GET.get("registro_fin", "").strip()
+
+    ultimos_registros = RegistroArea.objects.select_related(
+        "transportista", "area", "usuario_inicio", "usuario_fin"
+    ).filter(
+        Q(usuario_inicio=request.user) | Q(usuario_fin=request.user)
     )
+
+    if placa:
+        ultimos_registros = ultimos_registros.filter(
+            transportista__placa__icontains=placa
+        )
+
+    if nombre:
+        ultimos_registros = ultimos_registros.filter(
+            transportista__conductor__icontains=nombre
+        )
+
+    if registro_inicio:
+        try:
+            fecha_ini = timezone.datetime.strptime(registro_inicio, "%Y-%m-%d").date()
+            ultimos_registros = ultimos_registros.filter(fecha_inicio__date__gte=fecha_ini)
+        except ValueError:
+            pass
+
+    if registro_fin:
+        try:
+            fecha_fin = timezone.datetime.strptime(registro_fin, "%Y-%m-%d").date()
+            ultimos_registros = ultimos_registros.filter(fecha_fin__date__lte=fecha_fin)
+        except ValueError:
+            pass
+
+    ultimos_registros = ultimos_registros.order_by("-fecha_inicio")[:30]
 
     return render(
         request,
         "operaciones/pantalla_escaneo.html",
         {
             "area_usuario": area_usuario,
-            "ultimos_movimientos": ultimos_movimientos,
+            "ultimos_registros": ultimos_registros,
+            "placa_filtro": placa,
+            "nombre_filtro": nombre,
+            "registro_inicio_filtro": registro_inicio,
+            "registro_fin_filtro": registro_fin,
         },
     )
 
@@ -624,9 +643,8 @@ def pantalla_escaneo(request):
 @login_required
 def ingreso(request):
     if not (request.user.is_superuser or _usuario_tiene_area(request.user, "PORTERIA")):
-        return HttpResponseForbidden(
-            "Solo el administrador o el personal de Entrada puede registrar ingresos."
-        )
+        messages.error(request, "Solo el administrador o el personal de Entrada puede registrar ingresos.")
+        return redirect("lista")
 
     area_entrada = get_object_or_404(Area, codigo="PORTERIA")
 
@@ -658,9 +676,8 @@ def ingreso(request):
 @login_required
 def editar_transportista(request, pk):
     if not request.user.is_superuser:
-        return HttpResponseForbidden(
-            "Solo el administrador puede editar transportistas."
-        )
+        messages.error(request, "Solo el administrador puede editar transportistas.")
+        return redirect("lista")
 
     transportista = get_object_or_404(Transportista, pk=pk)
 
@@ -689,9 +706,8 @@ def editar_transportista(request, pk):
 @login_required
 def eliminar_transportista(request, pk):
     if not request.user.is_superuser:
-        return HttpResponseForbidden(
-            "Solo el administrador puede eliminar transportistas."
-        )
+        messages.error(request, "Solo el administrador puede eliminar transportistas.")
+        return redirect("lista")
 
     transportista = get_object_or_404(Transportista, pk=pk)
 
@@ -940,7 +956,8 @@ def historial(request, pk):
 @login_required
 def usuarios_lista(request):
     if not request.user.is_superuser:
-        return HttpResponseForbidden("Solo el superusuario puede administrar usuarios.")
+        messages.error(request, "Solo el administrador puede administrar usuarios.")
+        return redirect("lista")
 
     usuarios = User.objects.all().order_by("username").prefetch_related("groups")
 
@@ -956,7 +973,8 @@ def usuarios_lista(request):
 @login_required
 def usuario_crear(request):
     if not request.user.is_superuser:
-        return HttpResponseForbidden("Solo el superusuario puede crear usuarios.")
+        messages.error(request, "Solo el administrador puede crear usuarios.")
+        return redirect("lista")
 
     if request.method == "POST":
         form = UsuarioCrearForm(request.POST)
@@ -996,7 +1014,8 @@ def usuario_crear(request):
 @login_required
 def usuario_editar(request, pk):
     if not request.user.is_superuser:
-        return HttpResponseForbidden("Solo el superusuario puede editar usuarios.")
+        messages.error(request, "Solo el administrador puede editar usuarios.")
+        return redirect("lista")
 
     usuario_obj = get_object_or_404(User, pk=pk)
     grupo_actual = usuario_obj.groups.first()
@@ -1054,7 +1073,8 @@ def usuario_editar(request, pk):
 @login_required
 def usuario_eliminar(request, pk):
     if not request.user.is_superuser:
-        return HttpResponseForbidden("Solo el superusuario puede eliminar usuarios.")
+        messages.error(request, "Solo el administrador puede eliminar usuarios.")
+        return redirect("lista")
 
     usuario_obj = get_object_or_404(User, pk=pk)
 
