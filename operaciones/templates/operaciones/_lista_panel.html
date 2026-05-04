@@ -18,17 +18,17 @@
         {% endif %}
 
         {% if request.user.is_superuser or request.user.is_staff %}
-            <a href="{% url 'supervisor' %}" class="btn btn-outline-danger">Supervisor</a>
+            <a href="{% url 'supervisor' %}" class="btn btn-outline-secondary">Supervisor</a>
         {% endif %}
 
-        <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary">Historial</a>
+        <a href="{% url 'historial_global' %}" class="btn btn-outline-primary">Historial</a>
 
         {% if area_usuario or request.user.is_superuser %}
-            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-primary">Escanear</a>
+            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-outline-success">Escanear</a>
         {% endif %}
 
         {% if request.user.is_superuser or area_usuario and area_usuario.codigo == "PORTERIA" %}
-            <a href="{% url 'ingreso' %}" class="btn btn-success">+ Nuevo ingreso</a>
+            <a href="{% url 'ingreso' %}" class="btn btn-primary">+ Nuevo ingreso</a>
         {% endif %}
 
         <button id="btn-refrescar-panel" class="btn btn-outline-info" type="button">Actualizar</button>
@@ -124,7 +124,7 @@
     </div>
 </div>
 
-<!-- Vehículos en áreas -->
+<!-- Vehículos por área -->
 <div class="accordion mb-4" id="accordionResumen">
     <div class="accordion-item">
         <h2 class="accordion-header" id="headingAreas">
@@ -270,9 +270,7 @@
             {% for t in transportistas %}
                 <tr class="{{ t.fila_css|default:'' }}">
                     <td class="text-center">
-                        <a href="{% url 'qr_png' t.qr %}?v={{ t.qr }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                            Ver QR
-                        </a>
+                        <a href="{% url 'qr_png' t.qr %}?v={{ t.qr }}" target="_blank" class="btn btn-sm btn-outline-secondary">Ver QR</a>
                     </td>
 
                     {% if vista == 'finalizados' %}
@@ -288,9 +286,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-dark">Ver</a>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
                             {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
+                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-secondary">Editar</a>
                                 <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
                             {% endif %}
                         </td>
@@ -326,9 +324,9 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-dark">Ver</a>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-primary">Ver</a>
                             {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
+                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-secondary">Editar</a>
                                 <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
                             {% endif %}
                         </td>
