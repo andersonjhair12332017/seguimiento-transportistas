@@ -620,7 +620,7 @@ def pantalla_escaneo(request):
     if registro_fin:
         try:
             fecha_fin = timezone.datetime.strptime(registro_fin, "%Y-%m-%d").date()
-            ultimos_registros = ultimos_registros.filter(fecha_fin__date__lte=fecha_fin)
+            ultimos_registros = ultimos_registros.filter(fecha_inicio__date__lte=fecha_fin)
         except ValueError:
             pass
 

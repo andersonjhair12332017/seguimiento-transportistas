@@ -3,13 +3,15 @@
 {% block title %}Historial global{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
         <h2 class="fw-bold mb-1">Historial global</h2>
         <p class="text-muted mb-0">Consulta por día / turno / área.</p>
     </div>
     <div class="d-flex gap-2">
-        <a href="{% url 'supervisor' %}" class="btn btn-outline-danger">Supervisor</a>
+        {% if request.user.is_superuser %}
+            <a href="{% url 'supervisor' %}" class="btn btn-outline-danger">Supervisar</a>
+        {% endif %}
         <a href="{% url 'lista' %}" class="btn btn-outline-secondary">Volver al panel</a>
     </div>
 </div>
@@ -26,8 +28,7 @@
                 <label class="form-label">Turno</label>
                 <select name="turno" class="form-select">
                     <option value="">Todos</option>
-                    <option value="mañana" {% if turno == "mañana" %}selected{% endif %}>Mañana</option>
-                    <option value="tarde" {% if turno == "tarde" %}selected{% endif %}>Tarde</option>
+                    <option value="día" {% if turno == "día" %}selected{% endif %}>Día</option>
                     <option value="noche" {% if turno == "noche" %}selected{% endif %}>Noche</option>
                 </select>
             </div>
@@ -89,7 +90,13 @@
                                 En proceso
                             {% endif %}
                         </td>
-                        <td>{% if r.duracion_minutos %}{{ r.duracion_minutos }}{% else %}-{% endif %}</td>
+                        <td>
+                            {% if r.duracion_minutos %}
+                                {{ r.duracion_minutos }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
