@@ -18,7 +18,7 @@
         {% endif %}
 
         {% if request.user.is_superuser %}
-            <a href="{% url 'supervisor' %}" class="btn btn-dark btn-sm">Supervisar</a>
+            <a href="{% url 'supervisor' %}" class="btn btn-outline-dark btn-sm">Supervisar</a>
         {% endif %}
 
         <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary btn-sm">Historial</a>
@@ -130,7 +130,7 @@
     </div>
 </div>
 
-<!-- Vehículos por área -->
+<!-- Vehículos en áreas -->
 <div class="accordion mb-4" id="accordionResumen">
     <div class="accordion-item">
         <h2 class="accordion-header" id="headingAreas">
@@ -164,20 +164,20 @@
 <!-- Pestañas -->
 <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
-        <a href="{% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}"
-           class="nav-link {% if vista == 'activos' %}active{% endif %}">
+        <a class="nav-link {% if vista == 'activos' %}active{% endif %}"
+           href="{% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}">
             Vehículos en proceso
         </a>
     </li>
     <li class="nav-item">
-        <a href="{% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}"
-           class="nav-link {% if vista == 'finalizados' %}active{% endif %}">
+        <a class="nav-link {% if vista == 'finalizados' %}active{% endif %}"
+           href="{% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}">
             Vehículos finalizados
         </a>
     </li>
     <li class="nav-item">
-        <a href="{% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}"
-           class="nav-link {% if vista == 'puertas' %}active{% endif %}">
+        <a class="nav-link {% if vista == 'puertas' %}active{% endif %}"
+           href="{% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}">
             Estado de puertas de cargue
         </a>
     </li>
@@ -281,73 +281,103 @@
                 {% endif %}
             </thead>
             <tbody>
-            {% for t in transportistas %}
-                <tr class="{{ t.fila_css|default:'' }}">
-                    <td class="text-center">
-                        <button type="button"
-                                class="btn btn-link p-0 border-0 qr-thumb-btn"
-                                data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
-                                data-qr-code="{{ t.qr }}"
-                                title="Ver QR ampliado                      </td>
-                        <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-secondary btn-sm">Ver</a>
-                            {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
-                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
-                            {% endif %}
-                        </td>
-                    {% else %}
-                        <td class="fw-semibold">{{ t.placa }}</td>
-                        <td>{{ t.conductor }}</td>
-                        <td>{{ t.empresa }}</td>
-                        <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
-                        <td>
-                            <span class="badge bg-dark estado-badge">{{ t.area_actual.nombre }}</span>
-                        </td>
-                        <td>
-                            {% if t.esta_finalizado %}
-                                <span class="text-success fw-bold">Finalizado</span>
-                            {% else %}
-                                {{ t.siguiente_area_texto }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="live-timer {{ t.tiempo_css }}"
-                                  data-base-seconds="{{ t.tiempo_area_segundos }}"
-                                  data-rendered-at="{{ panel_render_epoch }}">
-                                {{ t.tiempo_area_texto }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="{{ t.estado_operativo_css }}">{{ t.estado_operativo }}</span>
-                        </td>
-                        <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-secondary btn-sm">Ver</a>
-                            {% if request.user.is_superuser %}
-                                <a href="{% url 'editar_transportista' t.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
-                                <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if t.area_actual.codigo == "CARGUE" %}
-                                {% for a in t.puertas_actuales %}
-                                    <span class="badge bg-primary">Puerta {{ a.puerta.numero }}</span>
-                                {% empty %}
+                {% for t in transportistas %}
+                    <tr class="{{ t.fila_css|default:'' }}">
+                        {% if vista == 'finalizados' %}
+                            <td class="text-center">
+                                <a href="#"
+                                   class="qr-thumb-btn d-inline-block"
+                                   data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
+                                   data-qr-code="{{ t.qr }}"
+                                   title="Ver QR ampliado">
+                                    <img
+                                        src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
+                                        alt="QR {{ t.qr }}"
+                                        class="qr-thumb-img">
+                                </a>
+                            </td>
+                            <td class="fw-semibold">{{ t.placa }}</td>
+                            <td>{{ t.conductor }}</td>
+                            <td>{{ t.empresa }}</td>
+                            <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
+                            <td>
+                                {% if t.fecha_salida %}
+                                    {{ t.fecha_salida|localtime|date:"Y-m-d H:i:s" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-secondary">Ver</a>
+                                {% if request.user.is_superuser %}
+                                    <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
+                                    <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                                {% endif %}
+                            </td>
+                        {% else %}
+                            <td class="text-center">
+                                <a href="#"
+                                   class="qr-thumb-btn d-inline-block"
+                                   data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
+                                   data-qr-code="{{ t.qr }}"
+                                   title="Ver QR ampliado">
+                                    <img
+                                        src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
+                                        alt="QR {{ t.qr }}"
+                                        class="qr-thumb-img">
+                                </a>
+                            </td>
+                            <td class="fw-semibold">{{ t.placa }}</td>
+                            <td>{{ t.conductor }}</td>
+                            <td>{{ t.empresa }}</td>
+                            <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
+                            <td>
+                                <span class="badge bg-dark estado-badge">{{ t.area_actual.nombre }}</span>
+                            </td>
+                            <td>
+                                {% if t.esta_finalizado %}
+                                    <span class="text-success fw-bold">Finalizado</span>
+                                {% else %}
+                                    {{ t.siguiente_area_texto }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="live-timer {{ t.tiempo_css }}"
+                                      data-base-seconds="{{ t.tiempo_area_segundos }}"
+                                      data-rendered-at="{{ panel_render_epoch }}">
+                                    {{ t.tiempo_area_texto }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="{{ t.estado_operativo_css }}">{{ t.estado_operativo }}</span>
+                            </td>
+                            <td>
+                                <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-secondary">Ver</a>
+                                {% if request.user.is_superuser %}
+                                    <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
+                                    <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if t.area_actual.codigo == "CARGUE" %}
+                                    {% for a in t.puertas_actuales %}
+                                        <span class="badge bg-primary">Puerta {{ a.puerta.numero }}</span>
+                                    {% empty %}
+                                        <span class="text-muted">-</span>
+                                    {% endfor %}
+                                {% else %}
                                     <span class="text-muted">-</span>
-                                {% endfor %}
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
+                                {% endif %}
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="{% if vista == 'finalizados' %}7{% else %}11{% endif %}" class="text-center text-muted py-4">
+                            No hay vehículos en esta vista.
                         </td>
-                    {% endif %}
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="{% if vista == 'finalizados' %}7{% else %}11{% endif %}" class="text-center text-muted py-4">
-                        No hay vehículos en esta vista.
-                    </td>
-                </tr>
-            {% endfor %}
+                    </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
