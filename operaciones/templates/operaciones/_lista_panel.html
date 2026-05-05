@@ -140,8 +140,7 @@
                 Vehículos en áreas
             </button>
         </h2>
-        <div id="collapseAreas" class="accordion-collapse collapse show"
-             aria-labelledby="headingAreas">
+        <div id="collapseAreas" class="accordion-collapse collapse show" aria-labelledby="headingAreas">
             <div class="accordion-body">
                 <div class="row g-3">
                     {% for area in areas %}
@@ -163,20 +162,17 @@
 <!-- Pestañas -->
 <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
-        <a href="{% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}"
-           class="nav-link {% if vista == 'activos' %}active{% endif %}">
+        <a class="nav-link {% if vista == 'activos' %}active{% endif %}" href="{% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}">
             Vehículos en proceso
         </a>
     </li>
     <li class="nav-item">
-        <a href="{% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}"
-           class="nav-link {% if vista == 'finalizados' %}active{% endif %}">
+        <a class="nav-link {% if vista == 'finalizados' %}active{% endif %}" href="{% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}">
             Vehículos finalizados
         </a>
     </li>
     <li class="nav-item">
-        <a href="{% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}"
-           class="nav-link {% if vista == 'puertas' %}active{% endif %}">
+        <a class="nav-link {% if vista == 'puertas' %}active{% endif %}" href="{% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}">
             Estado de puertas de cargue
         </a>
     </li>
@@ -222,7 +218,11 @@
                             {% else %}
                                 <span class="badge bg-danger">Ocupada</span>
                                 <div class="small fw-bold mt-2">
-                                    {% if p.placa %}{{ p.placa }}{% else %}-{% endif %}
+                                    {% if p.placa %}
+                                        {{ p.placa }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
                                 </div>
                                 {% if p.complemento %}
                                     <div class="small text-warning">Complemento</div>
@@ -281,9 +281,8 @@
                                 class="btn btn-link p-0 border-0 qr-thumb-btn"
                                 data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
                                 data-qr-code="{{ t.qr }}"
-                                title="Ver QR                     </td>
-                        <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-secondary btn-sm">Ver</a>
+                                title="Ver QR ampliado         <td>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-info btn-sm">Ver</a>
                             {% if request.user.is_superuser %}
                                 <a href="{% url 'editar_transportista' t.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
                                 <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
@@ -319,7 +318,7 @@
                             </span>
                         </td>
                         <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-secondary btn-sm">Ver</a>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-info btn-sm">Ver</a>
                             {% if request.user.is_superuser %}
                                 <a href="{% url 'editar_transportista' t.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
                                 <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
