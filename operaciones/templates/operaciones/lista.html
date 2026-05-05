@@ -1,4 +1,10 @@
-{% extends 'operaciones/base.html' %}{% extends 'operaciones/base.html para impresión */
+{% extends 'operaciones/base.html' %}
+
+{% block title %}Seguimiento de Transportistas{% endblock title %}
+
+{% block content %}
+<style>
+    /* Área oculta solo para impresión */
     #qrPrintArea {
         display: none;
     }
@@ -334,9 +340,3 @@
 })();
 </script>
 {% endblock content %}
-
-
-{% block title %}Seguimiento de Transportistas{% endblock title %}
-
-{% block content %}
-<style>
