@@ -3,83 +3,6 @@
 {% block title %}Seguimiento de Transportistas{% endblock title %}
 
 {% block content %}
-<style>
-    /* Área oculta solo para impresión */
-    #qrPrintArea {
-        display: none;
-    }
-
-    @media print {
-        body.printing-qr > *:not(#qrPrintArea) {
-            display: none !important;
-        }
-
-        body.printing-qr #qrPrintArea {
-            display: flex !important;
-            position: fixed;
-            inset: 0;
-            background: #ffffff;
-            justify-content: center;
-            align-items: center;
-            margin: 0;
-            padding: 0;
-        }
-
-        body.printing-qr {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: #ffffff !important;
-        }
-
-        @page {
-            size: 58mm 78mm;
-            margin: 0;
-        }
-    }
-
-    .print-page {
-        width: 58mm;
-        height: 78mm;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: #ffffff;
-        box-sizing: border-box;
-        padding: 4mm;
-    }
-
-    .print-sticker {
-        width: 100%;
-        border: 1px solid #d9d9d9;
-        border-radius: 4mm;
-        padding: 4mm 3mm 3mm 3mm;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        background: #ffffff;
-    }
-
-    .print-sticker img {
-        width: 40mm;
-        height: 40mm;
-        object-fit: contain;
-        display: block;
-    }
-
-    .print-code {
-        margin-top: 3mm;
-        font-size: 11pt;
-        font-weight: 700;
-        color: #333333;
-        letter-spacing: 0.6px;
-        line-height: 1.2;
-        word-break: break-word;
-    }
-</style>
-
 <div id="panel-auto">
     {% include 'operaciones/_lista_panel.html' %}
 </div>
@@ -104,16 +27,6 @@
     </div>
 </div>
 
-<!-- Área real que se imprimirá -->
-<div id="qrPrintArea" aria-hidden="true">
-    <div class="print-page">
-        <div class="print-sticker">
-            <img id="qrPrintImg" src="" alt="Código QR para imprimir">
-            <div id="qrPrintCode" class="print-code"></div>
-        </div>
-    </div>
-</div>
-
 <script>
 (function () {
     const panelId = "panel-auto";
@@ -125,7 +38,8 @@
 
     let qrActualSrc = "";
     let qrActualCodigo = "";
-    let imprimiendoQr = false;
+
+    const printUrlBase = "{% url 'qr_imprimir' 'CODIGO_TEMP' %}";
 
     function guardarEstadoUI() {
         return {
@@ -186,7 +100,7 @@
     }
 
     async function refrescarPanel() {
-        if (enCurso || imprimiendoQr) return;
+        if (enCurso) return;
         if (document.hidden) return;
 
         const activo = document.activeElement;
@@ -246,67 +160,11 @@
         modal.show();
     }
 
-    function esperarImagen(imgEl, timeoutMs = 2500) {
-        return new Promise((resolve) => {
-            if (imgEl.complete && imgEl.naturalWidth > 0) {
-                resolve();
-                return;
-            }
+    function imprimirQrSticker() {
+        if (!qrActualCodigo) return;
 
-            let terminado = false;
-
-            const finalizar = () => {
-                if (terminado) return;
-                terminado = true;
-                resolve();
-            };
-
-            imgEl.onload = finalizar;
-            imgEl.onerror = finalizar;
-
-            setTimeout(finalizar, timeoutMs);
-        });
-    }
-
-    function limpiarModoImpresion() {
-        document.body.classList.remove("printing-qr");
-        imprimiendoQr = false;
-        reiniciarTemporizadorAuto();
-    }
-
-    async function imprimirQrSticker() {
-        if (!qrActualSrc || !qrActualCodigo || imprimiendoQr) return;
-
-        imprimiendoQr = true;
-
-        if (timerAuto) {
-            clearInterval(timerAuto);
-        }
-
-        const imgPrint = document.getElementById("qrPrintImg");
-        const codePrint = document.getElementById("qrPrintCode");
-
-        imgPrint.src = qrActualSrc;
-        codePrint.textContent = qrActualCodigo;
-
-        await esperarImagen(imgPrint, 3000);
-
-        document.body.classList.add("printing-qr");
-
-        const afterPrintHandler = () => {
-            window.removeEventListener("afterprint", afterPrintHandler);
-            limpiarModoImpresion();
-        };
-
-        window.addEventListener("afterprint", afterPrintHandler);
-
-        setTimeout(() => {
-            window.print();
-
-            setTimeout(() => {
-                limpiarModoImpresion();
-            }, 4000);
-        }, 300);
+        const url = printUrlBase.replace("CODIGO_TEMP", encodeURIComponent(qrActualCodigo));
+        window.open(url, "_blank", "noopener,noreferrer");
     }
 
     document.addEventListener("visibilitychange", reiniciarTemporizadorAuto);
