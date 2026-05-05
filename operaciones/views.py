@@ -144,9 +144,15 @@ def _liberar_puertas_activas(transportista):
 
 
 def _actualizar_parqueadero_transportista(transportista):
+    """
+    Si el vehículo ya terminó Despachos, pasaron 20 minutos
+    y todavía no inició Cargue, entra automáticamente a Parqueadero.
+    Sale de Parqueadero apenas inicia Cargue (eso se hace en scan_qr).
+    """
     if transportista.esta_finalizado:
         return False
 
+    # Si ya pasó por Cargue alguna vez, no volver a parqueadero
     if transportista.registros_area.filter(area__codigo="CARGUE").exists():
         return False
 
@@ -328,9 +334,49 @@ def _obtener_turno_desde_hora(hora_valor):
     return "día"
 
 
+def _texto_siguiente_area_ui(transportista):
+    """
+    Texto de la siguiente área para la UI.
+    """
+    siguiente = getattr(transportista, "siguiente_area_texto", "") or ""
+
+    if transportista.area_actual.codigo == "PARQUEADERO":
+        return "Puerta de Cargue"
+
+    return siguiente
+
+
+def _texto_estado_actual_ui(transportista, registro_abierto):
+    """
+    Texto visible en 'Estado actual' para la UI.
+
+    Reglas:
+    - Si está finalizado: Finalizado
+    - Si está en PARQUEADERO: Parqueadero
+    - Si tiene registro abierto del área actual: nombre del área actual
+    - Si terminó un área y aún no inicia la siguiente:
+      Movilizándose hacia [siguiente área]
+    """
+    if transportista.esta_finalizado:
+        return "Finalizado"
+
+    codigo_actual = transportista.area_actual.codigo
+
+    # Parqueadero sigue visible como estado actual
+    # hasta que se inicie Cargue
+    if codigo_actual == "PARQUEADERO":
+        return "Parqueadero"
+
+    if registro_abierto and registro_abierto.area.codigo == codigo_actual:
+        return transportista.area_actual.nombre
+
+    siguiente = _texto_siguiente_area_ui(transportista) or "la siguiente área"
+    return f"Movilizándose hacia {siguiente}"
+
+
 def _marcar_estado_transportista(transportista, panel_render_epoch):
     minutos = _tiempo_en_area_minutos(transportista)
-    css, estado, fila_css = _clase_tiempo(transportista.area_actual.codigo, minutos)
+    css, estado_tiempo, fila_css = _clase_tiempo(transportista.area_actual.codigo, minutos)
 
     registro_abierto = _obtener_cualquier_registro_abierto(transportista)
 
@@ -338,13 +384,26 @@ def _marcar_estado_transportista(transportista, panel_render_epoch):
     transportista.tiempo_area_segundos = int(round(minutos * 60))
     transportista.tiempo_area_texto = _formatear_minutos_hhmm(minutos)
     transportista.tiempo_css = css
-    transportista.tiempo_estado = estado
+    transportista.tiempo_estado = estado_tiempo
     transportista.fila_css = fila_css
     transportista.panel_render_epoch = panel_render_epoch
+
+    if estado_tiempo == "Alerta":
+        transportista.estado_operativo = "Retrasado"
+        transportista.estado_operativo_css = "badge bg-danger"
+    else:
+        transportista.estado_operativo = "A tiempo"
+        transportista.estado_operativo_css = "badge bg-success"
+
+    transportista.estado_actual_ui = _texto_estado_actual_ui(transportista, registro_abierto)
+    transportista.siguiente_area_ui = _texto_siguiente_area_ui(transportista)
+
+    # Auxiliares por compatibilidad
     transportista.pendiente_cierre = bool(
         registro_abierto and registro_abierto.area.codigo == transportista.area_actual.codigo
     )
     transportista.area_pendiente_nombre = registro_abierto.area.nombre if registro_abierto else None
+
     return transportista
 
 
@@ -380,11 +439,12 @@ def _construir_contexto_lista(request):
     activos_count = Transportista.objects.exclude(area_actual__codigo="SALIDA").count()
     finalizados_count = Transportista.objects.filter(area_actual__codigo="SALIDA").count()
 
-    areas = Area.objects.all()
-    conteos = {
-        area.codigo: Transportista.objects.filter(area_actual=area).count()
-        for area in areas
-    }
+    # Parqueadero NO se muestra como área visible en KPIs / resumen
+    areas = Area.objects.exclude(codigo="PARQUEADERO").exclude(codigo="SALIDA")
+
+    conteos = {}
+    for area in areas:
+        conteos[area.codigo] = Transportista.objects.filter(area_actual=area).count()
 
     tablero_puertas = []
     for puerta in PuertaCargue.objects.all():
@@ -411,7 +471,7 @@ def _construir_contexto_lista(request):
         tablero_puertas.append(
             {
                 "numero": puerta.numero,
-                "disponible": puerta.disponible if asignacion else True,
+                "disponible": puerta.disponible if asignacion is None else False,
                 "placa": asignacion.transportista.placa if asignacion else None,
                 "complemento": asignacion.complemento if asignacion else False,
             }
@@ -419,16 +479,21 @@ def _construir_contexto_lista(request):
 
     alertas_total = 0
     alertas_por_area = {}
-    pendientes_cierre_total = 0
 
     for transportista in activos_qs:
         if transportista.tiempo_estado == "Alerta":
             alertas_total += 1
-            alertas_por_area[transportista.area_actual.codigo] = (
-                alertas_por_area.get(transportista.area_actual.codigo, 0) + 1
+
+            codigo_area_alerta = transportista.area_actual.codigo
+
+            # Parqueadero no se muestra como área visible;
+            # para analítica lo agrupamos hacia Cargue
+            if codigo_area_alerta == "PARQUEADERO":
+                codigo_area_alerta = "CARGUE"
+
+            alertas_por_area[codigo_area_alerta] = (
+                alertas_por_area.get(codigo_area_alerta, 0) + 1
             )
-        if transportista.pendiente_cierre:
-            pendientes_cierre_total += 1
 
     cuello_botella_area = None
     cuello_botella_count = 0
@@ -443,7 +508,11 @@ def _construir_contexto_lista(request):
     for codigo, total in alertas_por_area.items():
         if total > area_alerta_count:
             area_alerta_count = total
-            area_alerta_top = Area.objects.get(codigo=codigo).nombre
+            area_obj = Area.objects.filter(codigo=codigo).first()
+            if area_obj:
+                area_alerta_top = area_obj.nombre
+            elif codigo == "CARGUE":
+                area_alerta_top = "Cargue"
 
     top_demoras = sorted(
         activos_qs,
@@ -467,7 +536,6 @@ def _construir_contexto_lista(request):
         "finalizados_count": finalizados_count,
         "tablero_puertas": tablero_puertas,
         "alertas_total": alertas_total,
-        "pendientes_cierre_total": pendientes_cierre_total,
         "cuello_botella_area": cuello_botella_area,
         "cuello_botella_count": cuello_botella_count,
         "area_alerta_top": area_alerta_top,
@@ -786,18 +854,20 @@ def scan_qr(request, codigo_qr):
         return _error(
             request,
             transportista,
-            "Parqueadero ya no se registra por escaneo. El sistema lo asigna automáticamente si pasan 20 minutos sin iniciar Cargue."
+            "Parqueadero no se registra por escaneo. El sistema lo asigna automáticamente si pasan 20 minutos después de finalizar Despachos sin iniciar Cargue."
         )
 
     elif codigo_usuario == "CARGUE":
         asignacion_activa = transportista.asignaciones_cargue.filter(activa=True).first()
 
+        # Si ya estaba en CARGUE y vuelve a escanear con asignación activa, cierra Cargue
         if codigo_actual == "CARGUE" and registro_abierto and asignacion_activa:
             _liberar_puertas_activas(transportista)
             _cerrar_registro_area(transportista, "CARGUE", request.user)
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
             return _ok(request, transportista, "Fin en Cargue registrado correctamente.")
 
+        # Puede iniciar CARGUE desde DESPACHOS o desde PARQUEADERO, siempre que no tenga registro abierto
         if codigo_actual in ["DESPACHOS", "PARQUEADERO"] and not registro_abierto:
             if request.method == "POST":
                 form = AsignacionCargueForm(request.POST)
@@ -813,7 +883,9 @@ def scan_qr(request, codigo_qr):
                             f"La puerta {puerta.numero} ya no está disponible."
                         )
 
+                    # Sale de Parqueadero apenas inicia CARGUE
                     _cerrar_registro_area_si_abierto(transportista, "PARQUEADERO", request.user)
+
                     _abrir_registro_area(transportista, area_usuario, request.user)
 
                     puerta.disponible = False

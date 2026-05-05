@@ -14,21 +14,21 @@
 
     <div class="d-flex gap-2 flex-wrap">
         {% if request.user.is_superuser %}
-            <a href="{% url 'usuarios_lista' %}" class="btn btn-outline-dark btn-sm">Usuarios</a>
+            {% url 'usuarios_lista' %}Usuarios</a>
         {% endif %}
 
         {% if request.user.is_superuser %}
-            <a href="{% url 'supervisor' %}" class="btn btn-outline-dark btn-sm">Supervisar</a>
+            {% url 'supervisor' %}Supervisar</a>
         {% endif %}
 
-        <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary btn-sm">Historial</a>
+        {% url 'historial_global' %}Historial</a>
 
         {% if area_usuario or request.user.is_superuser %}
-            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-outline-primary btn-sm">Escanear</a>
+            {% url 'pantalla_escaneo' %}Escanear</a>
         {% endif %}
 
         {% if request.user.is_superuser or area_usuario and area_usuario.codigo == "PORTERIA" %}
-            <a href="{% url 'ingreso' %}" class="btn btn-primary btn-sm">+ Nuevo ingreso</a>
+            {% url 'ingreso' %}+ Nuevo ingreso</a>
         {% endif %}
 
         <button id="btn-refrescar-panel" class="btn btn-outline-info btn-sm" type="button">Actualizar</button>
@@ -99,7 +99,7 @@
     </div>
 </div>
 
-<!-- Ranking de demoras -->
+<!-- Ranking / Top de demoras -->
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
         <h5 class="fw-bold mb-3">Ranking / Top de demoras</h5>
@@ -108,7 +108,7 @@
                 <div class="col-lg-4 col-md-6">
                     <div class="border rounded-3 p-3 h-100 {{ t.fila_css }}">
                         <div class="fw-bold">{{ t.placa }}</div>
-                        <div class="small text-muted">{{ t.conductor }} · {{ t.area_actual.nombre }}</div>
+                        <div class="small text-muted">{{ t.conductor }} · {{ t.estado_actual_ui }}</div>
 
                         <div class="mt-2">
                             <span class="live-timer {{ t.tiempo_css }}"
@@ -130,7 +130,7 @@
     </div>
 </div>
 
-<!-- Vehículos en áreas -->
+<!-- Vehículos por áreas visibles -->
 <div class="accordion mb-4" id="accordionResumen">
     <div class="accordion-item">
         <h2 class="accordion-header" id="headingAreas">
@@ -164,20 +164,17 @@
 <!-- Pestañas -->
 <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
-        <a class="nav-link {% if vista == 'activos' %}active{% endif %}"
-           href="{% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}">
+        {% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}
             Vehículos en proceso
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {% if vista == 'finalizados' %}active{% endif %}"
-           href="{% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}">
+        {% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}
             Vehículos finalizados
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {% if vista == 'puertas' %}active{% endif %}"
-           href="{% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}">
+        {% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}
             Estado de puertas de cargue
         </a>
     </li>
@@ -189,18 +186,17 @@
         <form method="get" class="row g-2">
             <input type="hidden" name="vista" value="{{ vista }}">
             <div class="col-md-4">
-                <input
-                    type="text"
-                    name="q"
-                    value="{{ q }}"
-                    class="form-control"
-                    placeholder="Buscar por placa / conductor / empresa">
+                <input type="text"
+                       name="q"
+                       value="{{ q }}"
+                       class="form-control"
+                       placeholder="Buscar por placa / conductor / empresa">
             </div>
             <div class="col-auto">
                 <button class="btn btn-outline-primary btn-sm" type="submit">Buscar</button>
             </div>
             <div class="col-auto">
-                <a href="{% url 'lista' %}?vista={{ vista }}" class="btn btn-outline-secondary btn-sm">Limpiar</a>
+                {% url 'lista' %}?vista={{ vista }}Limpiar</a>
             </div>
         </form>
     </div>
@@ -285,16 +281,11 @@
                     <tr class="{{ t.fila_css|default:'' }}">
                         {% if vista == 'finalizados' %}
                             <td class="text-center">
-                                <a href="#"
-                                   class="qr-thumb-btn d-inline-block"
-                                   data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
-                                   data-qr-code="{{ t.qr }}"
-                                   title="Ver QR ampliado">
-                                    <img
-                                        src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
-                                        alt="QR {{ t.qr }}"
-                                        class="qr-thumb-img">
-                                </a>
+                                {% url 
+                                    <img src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
+                                         alt="QR {{ t.qr }}"
+                                         class="qr-thumb-img">
+                                </button>
                             </td>
                             <td class="fw-semibold">{{ t.placa }}</td>
                             <td>{{ t.conductor }}</td>
@@ -316,31 +307,13 @@
                             </td>
                         {% else %}
                             <td class="text-center">
-                                <a href="#"
-                                   class="qr-thumb-btn d-inline-block"
-                                   data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
-                                   data-qr-code="{{ t.qr }}"
-                                   title="Ver QR ampliado">
-                                    <img
-                                        src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
-                                        alt="QR {{ t.qr }}"
-                                        class="qr-thumb-img">
-                                </a>
+                                <button type="button"
+                                        class="btn btn-link p-0 border-0 qr-thumb-btn d-inline-block"
+                                        data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
+                                        data-qr-code="{{ t.qr }}"
+                                        title="Ver QR ampliado class="badge bg-dark estado-badge">{{ t.estado_actual_ui }}</span>
                             </td>
-                            <td class="fw-semibold">{{ t.placa }}</td>
-                            <td>{{ t.conductor }}</td>
-                            <td>{{ t.empresa }}</td>
-                            <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
-                            <td>
-                                <span class="badge bg-dark estado-badge">{{ t.area_actual.nombre }}</span>
-                            </td>
-                            <td>
-                                {% if t.esta_finalizado %}
-                                    <span class="text-success fw-bold">Finalizado</span>
-                                {% else %}
-                                    {{ t.siguiente_area_texto }}
-                                {% endif %}
-                            </td>
+                            <td>{{ t.siguiente_area_ui }}</td>
                             <td>
                                 <span class="live-timer {{ t.tiempo_css }}"
                                       data-base-seconds="{{ t.tiempo_area_segundos }}"
