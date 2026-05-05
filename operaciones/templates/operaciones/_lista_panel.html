@@ -18,13 +18,13 @@
         {% endif %}
 
         {% if request.user.is_superuser %}
-            <a href="{% url 'supervisor' %}" class="btn btn-outline-danger btn-sm">Supervisar</a>
+            <a href="{% url 'supervisor' %}" class="btn btn-dark btn-sm">Supervisar</a>
         {% endif %}
 
         <a href="{% url 'historial_global' %}" class="btn btn-outline-secondary btn-sm">Historial</a>
 
         {% if area_usuario or request.user.is_superuser %}
-            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-outline-success btn-sm">Escanear</a>
+            <a href="{% url 'pantalla_escaneo' %}" class="btn btn-success btn-sm">Escanear</a>
         {% endif %}
 
         {% if request.user.is_superuser or area_usuario and area_usuario.codigo == "PORTERIA" %}
@@ -109,6 +109,7 @@
                     <div class="border rounded-3 p-3 h-100 {{ t.fila_css }}">
                         <div class="fw-bold">{{ t.placa }}</div>
                         <div class="small text-muted">{{ t.conductor }} · {{ t.area_actual.nombre }}</div>
+
                         <div class="mt-2">
                             <span class="live-timer {{ t.tiempo_css }}"
                                   data-base-seconds="{{ t.tiempo_area_segundos }}"
@@ -116,6 +117,7 @@
                                 {{ t.tiempo_area_texto }}
                             </span>
                         </div>
+
                         <div class="mt-2">
                             <span class="{{ t.estado_operativo_css }}">{{ t.estado_operativo }}</span>
                         </div>
@@ -128,7 +130,7 @@
     </div>
 </div>
 
-<!-- Vehículos por área -->
+<!-- Vehículos en áreas -->
 <div class="accordion mb-4" id="accordionResumen">
     <div class="accordion-item">
         <h2 class="accordion-header" id="headingAreas">
@@ -162,17 +164,20 @@
 <!-- Pestañas -->
 <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
-        <a class="nav-link {% if vista == 'activos' %}active{% endif %}" href="{% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}">
+        <a class="nav-link {% if vista == 'activos' %}active{% endif %}"
+           href="{% url 'lista' %}?vista=activos{% if q %}&q={{ q|urlencode }}{% endif %}">
             Vehículos en proceso
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {% if vista == 'finalizados' %}active{% endif %}" href="{% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}">
+        <a class="nav-link {% if vista == 'finalizados' %}active{% endif %}"
+           href="{% url 'lista' %}?vista=finalizados{% if q %}&q={{ q|urlencode }}{% endif %}">
             Vehículos finalizados
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {% if vista == 'puertas' %}active{% endif %}" href="{% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}">
+        <a class="nav-link {% if vista == 'puertas' %}active{% endif %}"
+           href="{% url 'lista' %}?vista=puertas{% if q %}&q={{ q|urlencode }}{% endif %}">
             Estado de puertas de cargue
         </a>
     </li>
@@ -212,6 +217,7 @@
                     <div class="card {% if p.disponible %}border-success{% else %}border-danger{% endif %}">
                         <div class="card-body text-center">
                             <h5 class="mb-1 fw-bold">Puerta {{ p.numero }}</h5>
+
                             {% if p.disponible %}
                                 <span class="badge bg-success">Libre</span>
                                 <div class="small text-muted mt-2">Sin vehículo</div>
@@ -224,6 +230,7 @@
                                         -
                                     {% endif %}
                                 </div>
+
                                 {% if p.complemento %}
                                     <div class="small text-warning">Complemento</div>
                                 {% endif %}
@@ -281,8 +288,10 @@
                                 class="btn btn-link p-0 border-0 qr-thumb-btn"
                                 data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
                                 data-qr-code="{{ t.qr }}"
-                                title="Ver QR ampliado         <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-info btn-sm">Ver</a>
+                                title="Ver QR ampliadoif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-secondary btn-sm">Ver</a>
                             {% if request.user.is_superuser %}
                                 <a href="{% url 'editar_transportista' t.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
                                 <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
@@ -318,7 +327,7 @@
                             </span>
                         </td>
                         <td>
-                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-info btn-sm">Ver</a>
+                            <a href="{% url 'historial' t.id %}" class="btn btn-outline-secondary btn-sm">Ver</a>
                             {% if request.user.is_superuser %}
                                 <a href="{% url 'editar_transportista' t.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
                                 <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
