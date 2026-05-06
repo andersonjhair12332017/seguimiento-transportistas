@@ -288,7 +288,7 @@
                     <tr class="{{ t.fila_css|default:'' }}">
                         {% if vista == 'finalizados' %}
                             <td class="text-center">
-                                <a href="#"
+                                <a href="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
                                    class="qr-thumb-btn d-inline-block"
                                    data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
                                    data-qr-code="{{ t.qr }}"
@@ -318,7 +318,7 @@
                             </td>
                         {% else %}
                             <td class="text-center">
-                                <a href="#"
+                                <a href="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
                                    class="qr-thumb-btn d-inline-block"
                                    data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
                                    data-qr-code="{{ t.qr }}"
