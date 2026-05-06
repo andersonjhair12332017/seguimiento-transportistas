@@ -312,7 +312,7 @@ def _texto_siguiente_area_ui(transportista):
 
 
 def _texto_estado_actual_ui(transportista, registro_abierto):
-    if _es_finalizado(transportista):
+    if transportista.esta_finalizado:
         return "Finalizado"
 
     codigo_actual = transportista.area_actual.codigo
@@ -791,6 +791,7 @@ def scan_qr(request, codigo_qr):
             f'El transportista aún tiene el área "{registro_abierto.area.nombre}" en proceso. Debe escanear nuevamente en esa misma área para finalizar antes de continuar.'
         )
 
+    # DESPACHOS
     if codigo_usuario == "DESPACHOS":
         if codigo_actual == "PORTERIA" and not registro_abierto:
             _abrir_registro_area(transportista, area_usuario, request.user)
@@ -804,8 +805,13 @@ def scan_qr(request, codigo_qr):
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
             return _ok(request, transportista, "Fin en Despachos registrado correctamente.")
 
-        return _error(request, transportista, "Solo puede iniciar Despachos desde Entrada o finalizar si ya está en proceso.")
+        return _error(
+            request,
+            transportista,
+            "Solo puede iniciar Despachos desde Portería o finalizar si ya está en proceso."
+        )
 
+    # PARQUEADERO
     elif codigo_usuario == "PARQUEADERO":
         return _error(
             request,
@@ -813,15 +819,18 @@ def scan_qr(request, codigo_qr):
             "Parqueadero no se registra por escaneo. El sistema lo asigna automáticamente si pasan 20 minutos después de finalizar Despachos sin iniciar Cargue."
         )
 
+    # CARGUE
     elif codigo_usuario == "CARGUE":
         asignacion_activa = transportista.asignaciones_cargue.filter(activa=True).first()
 
+        # Finalizar Cargue
         if codigo_actual == "CARGUE" and registro_abierto and asignacion_activa:
             _liberar_puertas_activas(transportista)
             _cerrar_registro_area(transportista, "CARGUE", request.user)
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
             return _ok(request, transportista, "Fin en Cargue registrado correctamente.")
 
+        # Iniciar Cargue desde Despachos o Parqueadero
         if codigo_actual in ["DESPACHOS", "PARQUEADERO"] and not registro_abierto:
             if request.method == "POST":
                 form = AsignacionCargueForm(request.POST)
@@ -837,7 +846,9 @@ def scan_qr(request, codigo_qr):
                             f"La puerta {puerta.numero} ya no está disponible."
                         )
 
+                    # Sale de Parqueadero apenas inicia Cargue
                     _cerrar_registro_area_si_abierto(transportista, "PARQUEADERO", request.user)
+
                     _abrir_registro_area(transportista, area_usuario, request.user)
 
                     puerta.disponible = False
@@ -868,11 +879,19 @@ def scan_qr(request, codigo_qr):
             return render(
                 request,
                 "operaciones/asignar_cargue.html",
-                {"transportista": transportista, "form": form},
+                {
+                    "transportista": transportista,
+                    "form": form,
+                },
             )
 
-        return _error(request, transportista, "No puede iniciar/finalizar Cargue desde el estado actual.")
+        return _error(
+            request,
+            transportista,
+            "No puede iniciar/finalizar Cargue desde el estado actual."
+        )
 
+    # FACTURACION
     elif codigo_usuario == "FACTURACION":
         if codigo_actual == "CARGUE" and not registro_abierto:
             _abrir_registro_area(transportista, area_usuario, request.user)
@@ -892,8 +911,9 @@ def scan_qr(request, codigo_qr):
             "Facturación solo puede iniciar después de Cargue o finalizarse si ya está en proceso."
         )
 
+    # PORTERIA = finalización del vehículo
     elif codigo_usuario == "PORTERIA":
-        # Finalización real del vehículo en Portería
+        # Si ya terminó Facturación y no tiene nada abierto, Portería finaliza el vehículo
         if codigo_actual == "FACTURACION" and not registro_abierto:
             transportista.fecha_salida = timezone.now()
             transportista.save(update_fields=["fecha_salida"])
@@ -909,7 +929,7 @@ def scan_qr(request, codigo_qr):
         return _error(
             request,
             transportista,
-            "Portería registra el ingreso inicial por formulario y la finalización del vehículo únicamente cuando ya terminó Facturación."
+            "Portería registra el ingreso por formulario y finaliza el vehículo únicamente cuando ya terminó Facturación."
         )
 
     return _error(request, transportista, "Área no reconocida.")

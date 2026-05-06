@@ -40,7 +40,6 @@ class PuertaCargue(models.Model):
 
 class Transportista(models.Model):
     qr = models.CharField(max_length=50, unique=True)
-    # Se conserva por compatibilidad histórica
     qr_imagen = models.ImageField(upload_to="qrs/", blank=True, null=True)
 
     placa = models.CharField(max_length=20)
@@ -71,7 +70,7 @@ class Transportista(models.Model):
         codigo = self.area_actual.codigo
 
         if self.esta_finalizado:
-            return "Salida"
+            return "Finalizado"
 
         if codigo == "PORTERIA":
             return "Despachos"
@@ -82,11 +81,9 @@ class Transportista(models.Model):
         elif codigo == "CARGUE":
             return "Facturación"
         elif codigo == "FACTURACION":
-            # El vehículo finaliza en Portería
             return "Portería"
         elif codigo == "SALIDA":
-            # Compatibilidad histórica
-            return "Salida"
+            return "Finalizado"
         return "-"
 
     @property

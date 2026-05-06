@@ -333,11 +333,9 @@
                             <td>{{ t.empresa }}</td>
                             <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
                             <td>
-                                <span class="badge bg-dark estado-badge">
-                                    {{ t.estado_actual_ui|default:t.area_actual.nombre }}
-                                </span>
+                                <span class="badge bg-dark estado-badge">{{ t.estado_actual_ui }}</span>
                             </td>
-                            <td>{{ t.siguiente_area_ui|default:t.siguiente_area_texto }}</td>
+                            <td>{{ t.siguiente_area_ui }}</td>
                             <td>
                                 <span class="live-timer {{ t.tiempo_css }}"
                                       data-base-seconds="{{ t.tiempo_area_segundos }}"
