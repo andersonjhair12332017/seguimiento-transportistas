@@ -71,7 +71,7 @@ class Transportista(models.Model):
         codigo = self.area_actual.codigo
 
         if self.esta_finalizado:
-            return "Finalizado"
+            return "Salida"
 
         if codigo == "PORTERIA":
             return "Despachos"
@@ -86,7 +86,7 @@ class Transportista(models.Model):
             return "Portería"
         elif codigo == "SALIDA":
             # Compatibilidad histórica
-            return "Finalizado"
+            return "Salida"
         return "-"
 
     @property
