@@ -1,8 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-# Se deja SALIDA por compatibilidad histórica con posibles datos viejos,
-# pero el flujo nuevo ya no debe depender de esta área.
+# Se deja SALIDA por compatibilidad histórica con datos antiguos,
+# pero el flujo operativo nuevo ya no debe depender de esta área.
 AREAS_CONFIG = [
     ("PORTERIA", "Portería", 1),
     ("DESPACHOS", "Despachos", 2),
@@ -40,7 +40,7 @@ class PuertaCargue(models.Model):
 
 class Transportista(models.Model):
     qr = models.CharField(max_length=50, unique=True)
-    # Se conserva por compatibilidad histórica, pero ya no dependemos del archivo local
+    # Se conserva por compatibilidad histórica
     qr_imagen = models.ImageField(upload_to="qrs/", blank=True, null=True)
 
     placa = models.CharField(max_length=20)
@@ -82,10 +82,10 @@ class Transportista(models.Model):
         elif codigo == "CARGUE":
             return "Facturación"
         elif codigo == "FACTURACION":
-            # El vehículo finaliza en Portería, no en un área SALIDA operativa
+            # El vehículo finaliza en Portería
             return "Portería"
         elif codigo == "SALIDA":
-            # Compatibilidad histórica si existieran registros viejos
+            # Compatibilidad histórica
             return "Finalizado"
         return "-"
 
