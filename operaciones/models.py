@@ -1,8 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+# Se deja SALIDA por compatibilidad histórica con posibles datos viejos,
+# pero el flujo nuevo ya no debe depender de esta área.
 AREAS_CONFIG = [
-    ("PORTERIA", "Entrada", 1),
+    ("PORTERIA", "Portería", 1),
     ("DESPACHOS", "Despachos", 2),
     ("PARQUEADERO", "Parqueadero", 3),
     ("CARGUE", "Puerta de Cargue", 4),
@@ -46,6 +48,8 @@ class Transportista(models.Model):
     empresa = models.CharField(max_length=100)
 
     fecha_ingreso = models.DateTimeField(auto_now_add=True)
+    fecha_salida = models.DateTimeField(null=True, blank=True)
+
     area_actual = models.ForeignKey(
         Area,
         on_delete=models.PROTECT,
@@ -60,11 +64,14 @@ class Transportista(models.Model):
 
     @property
     def esta_finalizado(self):
-        return self.area_actual.codigo == "SALIDA"
+        return self.fecha_salida is not None
 
     @property
     def siguiente_area_texto(self):
         codigo = self.area_actual.codigo
+
+        if self.esta_finalizado:
+            return "Finalizado"
 
         if codigo == "PORTERIA":
             return "Despachos"
@@ -75,8 +82,10 @@ class Transportista(models.Model):
         elif codigo == "CARGUE":
             return "Facturación"
         elif codigo == "FACTURACION":
-            return "Salida"
+            # El vehículo finaliza en Portería, no en un área SALIDA operativa
+            return "Portería"
         elif codigo == "SALIDA":
+            # Compatibilidad histórica si existieran registros viejos
             return "Finalizado"
         return "-"
 
@@ -85,13 +94,6 @@ class Transportista(models.Model):
         return self.asignaciones_cargue.filter(
             activa=True
         ).select_related("puerta")
-
-    @property
-    def fecha_salida(self):
-        registro = self.registros_area.filter(area__codigo="SALIDA").order_by("-fecha_inicio").first()
-        if registro:
-            return registro.fecha_fin or registro.fecha_inicio
-        return None
 
 
 class Movimiento(models.Model):
