@@ -29,7 +29,6 @@ from .models import (
     RegistroArea,
 )
 
-# Umbrales de alerta por área (minutos)
 ALERTA_UMBRAL = {
     "PORTERIA": 10,
     "DESPACHOS": 20,
@@ -151,14 +150,11 @@ def _actualizar_parqueadero_transportista(transportista):
     Entra automáticamente a Parqueadero si:
     - ya finalizó Despachos
     - pasaron 20 minutos
-    - aún no inició Cargue
-
-    Sale de Parqueadero apenas inicia Cargue.
+    - todavía no ha iniciado Cargue
     """
     if _es_finalizado(transportista):
         return False
 
-    # Si ya pasó por Cargue alguna vez, no volver a parqueadero
     if transportista.registros_area.filter(area__codigo="CARGUE").exists():
         return False
 
@@ -301,10 +297,6 @@ def _clase_tiempo(codigo_area, minutos):
 
 
 def _obtener_turno_desde_hora(hora_valor):
-    """
-    Día   -> 06:00:01 a 17:59:59
-    Noche -> 18:00:00 a 06:00:00
-    """
     if hora_valor >= dt_time(18, 0, 0) or hora_valor <= dt_time(6, 0, 0):
         return "noche"
     return "día"
@@ -320,13 +312,6 @@ def _texto_siguiente_area_ui(transportista):
 
 
 def _texto_estado_actual_ui(transportista, registro_abierto):
-    """
-    Estado actual visible en el panel:
-    - Finalizado, si ya tiene fecha_salida
-    - Parqueadero, si está temporalmente esperando cargue
-    - Nombre del área, si tiene el registro del área abierto
-    - Movilizándose hacia..., si cerró el área actual y aún no inicia la siguiente
-    """
     if _es_finalizado(transportista):
         return "Finalizado"
 
@@ -431,7 +416,6 @@ def _construir_contexto_lista(request):
     activos_count = Transportista.objects.filter(fecha_salida__isnull=True).count()
     finalizados_count = Transportista.objects.filter(fecha_salida__isnull=False).count()
 
-    # Parqueadero NO aparece como área visible en KPIs / resumen
     areas = Area.objects.exclude(codigo="PARQUEADERO")
 
     conteos = {}
@@ -853,9 +837,7 @@ def scan_qr(request, codigo_qr):
                             f"La puerta {puerta.numero} ya no está disponible."
                         )
 
-                    # Sale de Parqueadero apenas inicia Cargue
                     _cerrar_registro_area_si_abierto(transportista, "PARQUEADERO", request.user)
-
                     _abrir_registro_area(transportista, area_usuario, request.user)
 
                     puerta.disponible = False
@@ -911,7 +893,7 @@ def scan_qr(request, codigo_qr):
         )
 
     elif codigo_usuario == "PORTERIA":
-        # Salida final del vehículo: la registra Portería
+        # Finalización real del vehículo en Portería
         if codigo_actual == "FACTURACION" and not registro_abierto:
             transportista.fecha_salida = timezone.now()
             transportista.save(update_fields=["fecha_salida"])
@@ -969,7 +951,6 @@ def usuarios_lista(request):
         return redirect("lista")
 
     usuarios = User.objects.all().order_by("username").prefetch_related("groups")
-
     return render(request, "operaciones/usuarios_lista.html", {"usuarios": usuarios})
 
 
