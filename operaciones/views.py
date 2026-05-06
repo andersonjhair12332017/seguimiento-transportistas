@@ -122,6 +122,80 @@ def _cerrar_registro_area(transportista, codigo_area, usuario):
 def _cerrar_registro_area_si_abierto(transportista, codigo_area, usuario):
     return _cerrar_registro_area(transportista, codigo_area, usuario)
 
+def _obtener_usuario_ingreso_porteria(transportista, usuario_por_defecto=None):
+    """
+    Intenta recuperar el usuario que registró el ingreso inicial en Portería.
+    Si no lo encuentra, usa el usuario por defecto.
+    """
+    movimiento_ingreso = (
+        transportista.movimientos.filter(area__codigo="PORTERIA")
+        .order_by("fecha_hora")
+        .first()
+    )
+
+    if movimiento_ingreso and movimiento_ingreso.usuario:
+        return movimiento_ingreso.usuario
+
+    return usuario_por_defecto
+
+
+def _sincronizar_registro_porteria_total(transportista, usuario_salida):
+    """
+    Crea o actualiza el registro histórico de Portería
+    para que su duración vaya desde fecha_ingreso hasta fecha_salida.
+    Esto NO bloquea el flujo operativo porque no se deja activo.
+    """
+    area_porteria = Area.objects.get(codigo="PORTERIA")
+
+    usuario_ingreso = _obtener_usuario_ingreso_porteria(
+        transportista,
+        usuario_por_defecto=usuario_salida
+    )
+
+    registro = (
+        transportista.registros_area.filter(area__codigo="PORTERIA")
+        .order_by("fecha_inicio")
+        .first()
+    )
+
+    if registro:
+        registro.fecha_inicio = transportista.fecha_ingreso
+        registro.fecha_fin = transportista.fecha_salida
+        registro.usuario_inicio = usuario_ingreso
+        registro.usuario_fin = usuario_salida
+        registro.activo = False
+        registro.save(
+            update_fields=[
+                "fecha_inicio",
+                "fecha_fin",
+                "usuario_inicio",
+                "usuario_fin",
+                "activo",
+            ]
+        )
+        return registro
+
+    registro = RegistroArea.objects.create(
+        transportista=transportista,
+        area=area_porteria,
+        usuario_inicio=usuario_ingreso,
+        activo=False,
+    )
+
+    registro.fecha_inicio = transportista.fecha_ingreso
+    registro.fecha_fin = transportista.fecha_salida
+    registro.usuario_fin = usuario_salida
+    registro.activo = False
+    registro.save(
+        update_fields=[
+            "fecha_inicio",
+            "fecha_fin",
+            "usuario_fin",
+            "activo",
+        ]
+    )
+    return registro
+
 
 def _liberar_puertas_activas(transportista):
     asignaciones_activas = (
@@ -696,8 +770,6 @@ def ingreso(request):
             transportista.area_actual = area_entrada
             transportista.save()
 
-            _abrir_registro_area(transportista, area_entrada, request.user)
-            _cerrar_registro_area(transportista, "PORTERIA", request.user)
             _registrar_movimiento(transportista, area_entrada, request.user, "INICIO")
 
             _generar_qr_para_transportista(request, transportista)
@@ -913,12 +985,18 @@ def scan_qr(request, codigo_qr):
 
     # PORTERIA = finalización del vehículo
     elif codigo_usuario == "PORTERIA":
-        # Si ya terminó Facturación y no tiene nada abierto, Portería finaliza el vehículo
+        # Portería finaliza el vehículo cuando ya terminó Facturación
         if codigo_actual == "FACTURACION" and not registro_abierto:
             transportista.fecha_salida = timezone.now()
-            transportista.save(update_fields=["fecha_salida"])
+            transportista.area_actual = area_usuario
+            transportista.save(update_fields=["fecha_salida", "area_actual"])
 
-            _registrar_movimiento(transportista, transportista.area_actual, request.user, "FIN")
+            # Movimiento final en Portería
+            _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
+
+            # Consolidar el registro histórico de Portería:
+            # inicio = fecha_ingreso / fin = fecha_salida
+            _sincronizar_registro_porteria_total(transportista, request.user)
 
             return _ok(
                 request,
@@ -929,7 +1007,7 @@ def scan_qr(request, codigo_qr):
         return _error(
             request,
             transportista,
-            "Portería registra el ingreso por formulario y finaliza el vehículo únicamente cuando ya terminó Facturación."
+            "Portería registra el ingreso inicial por formulario, registra la finalización del vehículo únicamente cuando ya terminó Facturación."
         )
 
     return _error(request, transportista, "Área no reconocida.")
