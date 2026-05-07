@@ -812,57 +812,6 @@ def ingreso(request):
 
 
 @login_required
-def editar_transportista(request, pk):
-    if not request.user.is_superuser:
-        messages.error(request, "Solo el administrador puede editar transportistas.")
-        return redirect("lista")
-
-    transportista = get_object_or_404(Transportista, pk=pk)
-
-    if request.method == "POST":
-        form = TransportistaEditarForm(request.POST, instance=transportista)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Transportista {transportista.placa} actualizado correctamente.")
-            return redirect("lista")
-    else:
-        form = TransportistaEditarForm(instance=transportista)
-
-    return render(
-        request,
-        "operaciones/editar_transportista.html",
-        {
-            "transportista": transportista,
-            "form": form,
-        },
-    )
-
-
-@login_required
-def eliminar_transportista(request, pk):
-    if not request.user.is_superuser:
-        messages.error(request, "Solo el administrador puede eliminar transportistas.")
-        return redirect("lista")
-
-    transportista = get_object_or_404(Transportista, pk=pk)
-
-    if request.method == "POST":
-        placa = transportista.placa
-        _liberar_puertas_activas(transportista)
-        transportista.delete()
-        messages.success(request, f"Transportista {placa} eliminado correctamente.")
-        return redirect("lista")
-
-    return render(
-        request,
-        "operaciones/eliminar_transportista.html",
-        {
-            "transportista": transportista,
-        },
-    )
-
-
-@login_required
 def scan_qr(request, codigo_qr):
     transportista = get_object_or_404(
         Transportista.objects.select_related("area_actual"),
@@ -888,14 +837,26 @@ def scan_qr(request, codigo_qr):
 
     codigo_usuario = area_usuario.codigo
     codigo_actual = transportista.area_actual.codigo
-
     registro_abierto = _obtener_cualquier_registro_abierto(transportista)
+
+    # ------------------------------------------------------------------
+    # Validación general:
+    # si hay un registro abierto en otra área, normalmente se bloquea.
+    # EXCEPCIÓN: si el registro abierto es PARQUEADERO y escanean en CARGUE,
+    # sí se permite, porque CARGUE es quien saca al vehículo de Parqueadero.
+    # ------------------------------------------------------------------
     if registro_abierto and registro_abierto.area.codigo != codigo_usuario:
-        return _error(
-            request,
-            transportista,
-            f'El transportista aún tiene el área "{registro_abierto.area.nombre}" en proceso. Debe escanear nuevamente en esa misma área para finalizar antes de continuar.'
+        excepcion_parqueadero_a_cargue = (
+            registro_abierto.area.codigo == "PARQUEADERO" and
+            codigo_usuario == "CARGUE"
         )
+
+        if not excepcion_parqueadero_a_cargue:
+            return _error(
+                request,
+                transportista,
+                f'El transportista aún tiene el área "{registro_abierto.area.nombre}" en proceso. Debe escanear nuevamente en esa misma área para finalizar antes de continuar.'
+            )
 
     # DESPACHOS
     if codigo_usuario == "DESPACHOS":
@@ -906,7 +867,7 @@ def scan_qr(request, codigo_qr):
             _registrar_movimiento(transportista, area_usuario, request.user, "INICIO")
             return _ok(request, transportista, "Inicio en Despachos registrado correctamente.")
 
-        if codigo_actual == "DESPACHOS" and registro_abierto:
+        if codigo_actual == "DESPACHOS" and registro_abierto and registro_abierto.area.codigo == "DESPACHOS":
             _cerrar_registro_area(transportista, "DESPACHOS", request.user)
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
             return _ok(request, transportista, "Fin en Despachos registrado correctamente.")
@@ -929,13 +890,20 @@ def scan_qr(request, codigo_qr):
     elif codigo_usuario == "CARGUE":
         asignacion_activa = transportista.asignaciones_cargue.filter(activa=True).first()
 
-        if codigo_actual == "CARGUE" and registro_abierto and asignacion_activa:
+        # Finalizar Cargue
+        if (
+            codigo_actual == "CARGUE"
+            and registro_abierto
+            and registro_abierto.area.codigo == "CARGUE"
+            and asignacion_activa
+        ):
             _liberar_puertas_activas(transportista)
             _cerrar_registro_area(transportista, "CARGUE", request.user)
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
             return _ok(request, transportista, "Fin en Cargue registrado correctamente.")
 
-        if codigo_actual in ["DESPACHOS", "PARQUEADERO"] and not registro_abierto:
+        # Iniciar Cargue desde DESPACHOS o PARQUEADERO
+        if codigo_actual in ["DESPACHOS", "PARQUEADERO"]:
             if request.method == "POST":
                 form = AsignacionCargueForm(request.POST)
                 if form.is_valid():
@@ -950,9 +918,10 @@ def scan_qr(request, codigo_qr):
                             f"La puerta {puerta.numero} ya no está disponible."
                         )
 
-                    # Sale de Parqueadero apenas inicia Cargue
+                    # Si está en PARQUEADERO, CARGUE lo saca de inmediato
                     _cerrar_registro_area_si_abierto(transportista, "PARQUEADERO", request.user)
 
+                    # Abrir Cargue
                     _abrir_registro_area(transportista, area_usuario, request.user)
 
                     puerta.disponible = False
@@ -975,7 +944,7 @@ def scan_qr(request, codigo_qr):
                     return _ok(
                         request,
                         transportista,
-                        f"Inicio en Cargue registrado en la puerta {puerta.numero}.",
+                        f"Inicio en Cargue registrado en la puerta {puerta.numero}."
                     )
             else:
                 form = AsignacionCargueForm()
@@ -1004,7 +973,7 @@ def scan_qr(request, codigo_qr):
             _registrar_movimiento(transportista, area_usuario, request.user, "INICIO")
             return _ok(request, transportista, "Inicio en Facturación registrado correctamente.")
 
-        if codigo_actual == "FACTURACION" and registro_abierto:
+        if codigo_actual == "FACTURACION" and registro_abierto and registro_abierto.area.codigo == "FACTURACION":
             _cerrar_registro_area(transportista, "FACTURACION", request.user)
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
             return _ok(request, transportista, "Fin en Facturación registrado correctamente.")
@@ -1025,7 +994,7 @@ def scan_qr(request, codigo_qr):
             # Movimiento final en Portería
             _registrar_movimiento(transportista, area_usuario, request.user, "FIN")
 
-            # Consolidar el registro histórico completo de Portería
+            # Consolidar registro histórico completo de Portería
             _sincronizar_registro_porteria_total(transportista, request.user)
 
             return _ok(
@@ -1068,6 +1037,63 @@ def historial(request, pk):
             "movimientos": movimientos,
             "registros_area": registros_area,
             "asignaciones": asignaciones,
+        },
+    )
+
+
+@login_required
+def editar_transportista(request, pk):
+    if not request.user.is_superuser:
+        messages.error(request, "Solo el administrador puede editar transportistas.")
+        return redirect("lista")
+
+    transportista = get_object_or_404(Transportista, pk=pk)
+
+    if request.method == "POST":
+        form = TransportistaEditarForm(request.POST, instance=transportista)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request,
+                f"Transportista {transportista.placa} actualizado correctamente."
+            )
+            return redirect("lista")
+    else:
+        form = TransportistaEditarForm(instance=transportista)
+
+    return render(
+        request,
+        "operaciones/editar_transportista.html",
+        {
+            "transportista": transportista,
+            "form": form,
+        },
+    )
+
+
+@login_required
+def eliminar_transportista(request, pk):
+    if not request.user.is_superuser:
+        messages.error(request, "Solo el administrador puede eliminar transportistas.")
+        return redirect("lista")
+
+    transportista = get_object_or_404(Transportista, pk=pk)
+
+    if request.method == "POST":
+        placa = transportista.placa
+        _liberar_puertas_activas(transportista)
+        transportista.delete()
+        messages.success(
+            request,
+            f"Transportista {placa} eliminado correctamente."
+        )
+        return redirect("lista")
+
+    return render(
+        request,
+        "operaciones/eliminar_transportista.html",
+        {
+            "transportista": transportista,
         },
     )
 
