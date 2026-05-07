@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-# Se deja SALIDA por compatibilidad histórica con datos antiguos,
+# Se deja SALIDA por compatibilidad histórica con datos viejos,
 # pero el flujo operativo nuevo ya no debe depender de esta área.
 AREAS_CONFIG = [
     ("PORTERIA", "Portería", 1),
@@ -83,6 +83,7 @@ class Transportista(models.Model):
         elif codigo == "FACTURACION":
             return "Portería"
         elif codigo == "SALIDA":
+            # Compatibilidad histórica
             return "Finalizado"
         return "-"
 
