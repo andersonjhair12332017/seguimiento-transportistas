@@ -1,0 +1,44 @@
+{% extends 'operaciones/base.html' %}
+
+{% block title %}Registrar Novedad de Cargue{% endblock title %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <h3 class="fw-bold mb-3">Registrar Novedad de Cargue</h3>
+            <p class="text-muted mb-2">
+                Vehículo: <strong>{{ transportista.placa }}</strong> · {{ transportista.conductor }}
+            </p>
+            <p class="text-muted mb-4">
+                Puerta: <strong>{{ asignacion.puerta.numero }}</strong>
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label">{{ form.causal.label }}</label>
+                    {{ form.causal }}
+                    {% if form.causal.errors %}
+                        <div class="text-danger small mt-1">{{ form.causal.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{{ form.observacion.label }}</label>
+                    {{ form.observacion }}
+                    {% if form.observacion.errors %}
+                        <div class="text-danger small mt-1">{{ form.observacion.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-warning">Registrar novedad</button>
+                    {% url 'lista' %}Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

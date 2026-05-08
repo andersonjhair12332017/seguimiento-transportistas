@@ -1,0 +1,22 @@
+{% extends 'operaciones/base.html' %}
+
+{% block title %}Eliminar causal{% endblock title %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <h3 class="fw-bold mb-3">Eliminar causal</h3>
+            <p>¿Seguro que deseas eliminar la causal <strong>{{ causal.nombre }}</strong>?</p>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                    {% url 'causales_novedad_lista' %}Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

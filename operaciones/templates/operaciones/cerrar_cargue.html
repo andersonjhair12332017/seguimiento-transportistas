@@ -1,0 +1,47 @@
+{% extends 'operaciones/base.html' %}
+
+{% block title %}Cerrar Cargue{% endblock title %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <h3 class="fw-bold mb-3">Finalizar Cargue</h3>
+            <p class="text-muted mb-2">
+                Vehículo: <strong>{{ transportista.placa }}</strong> · {{ transportista.conductor }}
+            </p>
+            <p class="text-muted mb-4">
+                Puerta: <strong>{{ asignacion.puerta.numero }}</strong>
+                {% if asignacion.cubicaje %}
+                    · Cubicaje: <strong>{{ asignacion.cubicaje }} m³</strong>
+                {% endif %}
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">{{ form.cargue_completo.label }}</label>
+                    {{ form.cargue_completo }}
+                    {% if form.cargue_completo.errors %}
+                        <div class="text-danger small mt-1">{{ form.cargue_completo.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{{ form.observacion.label }}</label>
+                    {{ form.observacion }}
+                    {% if form.observacion.errors %}
+                        <div class="text-danger small mt-1">{{ form.observacion.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Confirmar cierre</button>
+                    {% url 'lista' %}Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

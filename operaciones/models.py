@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 # Se deja SALIDA por compatibilidad histórica con datos viejos,
 # pero el flujo operativo nuevo ya no debe depender de esta área.
@@ -36,6 +37,32 @@ class PuertaCargue(models.Model):
 
     def __str__(self):
         return f"Puerta {self.numero}"
+
+
+class RangoCubicaje(models.Model):
+    nombre = models.CharField(max_length=100)
+    cubicaje_min = models.DecimalField(max_digits=8, decimal_places=2)
+    cubicaje_max = models.DecimalField(max_digits=8, decimal_places=2)
+    minutos_estandar = models.PositiveIntegerField()
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["cubicaje_min"]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.cubicaje_min} - {self.cubicaje_max} m³)"
+
+
+class CausalNovedadCargue(models.Model):
+    nombre = models.CharField(max_length=120, unique=True)
+    descripcion = models.CharField(max_length=255, blank=True, null=True)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
 
 
 class Transportista(models.Model):
@@ -75,7 +102,7 @@ class Transportista(models.Model):
         if codigo == "PORTERIA":
             return "Despachos"
         elif codigo == "DESPACHOS":
-            return "Puerta de Cargue (o Parqueadero automático a los 20 min)"
+            return "Puerta de Cargue (o Parqueadero automático a los 10 min)"
         elif codigo == "PARQUEADERO":
             return "Puerta de Cargue"
         elif codigo == "CARGUE":
@@ -83,7 +110,6 @@ class Transportista(models.Model):
         elif codigo == "FACTURACION":
             return "Portería"
         elif codigo == "SALIDA":
-            # Compatibilidad histórica
             return "Finalizado"
         return "-"
 
@@ -155,10 +181,9 @@ class RegistroArea(models.Model):
 
     @property
     def duracion_minutos(self):
-        if self.fecha_fin:
-            delta = self.fecha_fin - self.fecha_inicio
-            return round(delta.total_seconds() / 60, 2)
-        return None
+        fin = self.fecha_fin or timezone.now()
+        delta = fin - self.fecha_inicio
+        return round(delta.total_seconds() / 60, 2)
 
 
 class AsignacionCargue(models.Model):
@@ -182,6 +207,7 @@ class AsignacionCargue(models.Model):
     complemento = models.BooleanField(default=False)
     activa = models.BooleanField(default=True)
     observacion = models.CharField(max_length=255, blank=True, null=True)
+    cubicaje = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
 
     class Meta:
         ordering = ["-fecha_inicio"]
@@ -189,3 +215,41 @@ class AsignacionCargue(models.Model):
     def __str__(self):
         tipo = "Complemento" if self.complemento else "Cargue"
         return f"{self.transportista.placa} - {self.puerta} - {tipo}"
+
+    @property
+    def novedad_activa(self):
+        return self.novedades.filter(activa=True).order_by("-fecha_inicio").first()
+
+
+class NovedadCargue(models.Model):
+    asignacion = models.ForeignKey(
+        AsignacionCargue,
+        on_delete=models.CASCADE,
+        related_name="novedades"
+    )
+    causal = models.ForeignKey(
+        CausalNovedadCargue,
+        on_delete=models.PROTECT,
+        related_name="novedades"
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="novedades_cargue_registradas"
+    )
+    fecha_inicio = models.DateTimeField(auto_now_add=True)
+    fecha_fin = models.DateTimeField(blank=True, null=True)
+    activa = models.BooleanField(default=True)
+    observacion = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        ordering = ["-fecha_inicio"]
+
+    def __str__(self):
+        return f"{self.asignacion.transportista.placa} - {self.causal.nombre}"
+
+    @property
+    def duracion_minutos(self):
+        fin = self.fecha_fin or timezone.now()
+        delta = fin - self.fecha_inicio
+        return round(delta.total_seconds() / 60, 2)

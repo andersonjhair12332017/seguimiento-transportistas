@@ -1,9 +1,5 @@
 {% load operaciones_extras %}
-{% load tz %}
-
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-    <div>
-        <h2 class="mb-1 titulo-principal">Seguimiento de Transportistas</h2>
+{% load2 class="mb-1 titulo-principal">Seguimiento de Transportistas</h2>{% load tz %}
         <p class="text-muted mb-0 subtitulo-principal">
             Control de ingreso, tiempos por área, puertas de cargue y trazabilidad.
         </p>
@@ -31,6 +27,10 @@
 
         {% if request.user.is_superuser or area_usuario and area_usuario.codigo == "PORTERIA" %}
             <a href="{% url 'ingreso' %}" class="btn btn-primary btn-sm">+ Nuevo ingreso</a>
+        {% endif %}
+
+        {% if request.user.is_superuser %}
+            <a href="{% url 'causales_novedad_lista' %}" class="btn btn-outline-warning btn-sm">Causales</a>
         {% endif %}
 
         <button id="btn-refrescar-panel" class="btn btn-outline-info btn-sm" type="button">
@@ -127,16 +127,24 @@
                         <div class="mt-2">
                             <span class="{{ t.estado_operativo_css }}">{{ t.estado_operativo }}</span>
                         </div>
+
+                        {% if t.asignacion_cargue_activa and t.asignacion_cargue_activa.cubicaje %}
+                            <div class="small text-muted mt-2">
+                                Cubicaje: {{ t.asignacion_cargue_activa.cubicaje }} m³
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             {% empty %}
-                <div class="col-12 text-muted">No hay vehículos en proceso para calcular ranking.</div>
+                <div class="col-12 text-muted">
+                    No hay vehículos en proceso para calcular ranking.
+                </div>
             {% endfor %}
         </div>
     </div>
 </div>
 
-<!-- Vehículos por áreas visibles -->
+<!-- Resumen por áreas -->
 <div class="accordion mb-4" id="accordionResumen">
     <div class="accordion-item">
         <h2 class="accordion-header" id="headingAreas">
@@ -170,7 +178,7 @@
     </div>
 </div>
 
-<!-- Pestañas -->
+<!-- Tabs -->
 <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
         <a class="nav-link {% if vista == 'activos' %}active{% endif %}"
@@ -223,7 +231,7 @@
         <h4 class="fw-bold mb-3">Estado de puertas de cargue</h4>
         <div class="row g-3">
             {% for p in tablero_puertas %}
-                <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                <div class="col-lg-3 col-md-4 col-sm-6 col-6">
                     <div class="card {% if p.disponible %}border-success{% else %}border-danger{% endif %}">
                         <div class="card-body text-center">
                             <h5 class="mb-1 fw-bold">Puerta {{ p.numero }}</h5>
@@ -240,6 +248,10 @@
                                         -
                                     {% endif %}
                                 </div>
+
+                                {% if p.cubicaje %}
+                                    <div class="small text-muted mt-1">{{ p.cubicaje }} m³</div>
+                                {% endif %}
 
                                 {% if p.complemento %}
                                     <div class="small text-warning">Complemento</div>
@@ -295,30 +307,11 @@
                     {% if vista == 'finalizados' %}
                         <tr class="{{ t.fila_css|default:'' }}">
                             <td class="text-center">
-                                <a href="#"
-                                   class="qr-thumb-btn d-inline-block"
-                                   data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
-                                   data-qr-code="{{ t.qr }}"
-                                   title="Ver QR ampliado">
-                                    <img src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
-                                         alt="QR {{ t.qr }}"
-                                         style="width: 44px; height: 44px; object-fit: contain;">
-                                </a>
-                            </td>
-                            <td class="fw-semibold">{{ t.placa }}</td>
-                            <td>{{ t.conductor }}</td>
-                            <td>{{ t.empresa }}</td>
-                            <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
-                            <td>
-                                {% if t.fecha_salida %}
-                                    {{ t.fecha_salida|localtime|date:"Y-m-d H:i:s" }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'historial' t.id %}" class="btn btn-sm btn-outline-secondary">Ver</a>
-                                {% if request.user.is_superuser %}
+                                <button type="button"
+                                        class="btn btn-link p-0 border-0 qr-thumb-btn d-inline-block"
+                                        data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
+                                        data-qr-code="{{ t.qr }}"
+                                        title="Ver QR ampliado%}
                                     <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
                                     <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
                                 {% endif %}
@@ -327,22 +320,11 @@
                     {% else %}
                         <tr class="{{ t.fila_css|default:'' }}">
                             <td class="text-center">
-                                <a href="#"
-                                   class="qr-thumb-btn d-inline-block"
-                                   data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
-                                   data-qr-code="{{ t.qr }}"
-                                   title="Ver QR ampliado">
-                                    <img src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
-                                         alt="QR {{ t.qr }}"
-                                         style="width: 44px; height: 44px; object-fit: contain;">
-                                </a>
-                            </td>
-                            <td class="fw-semibold">{{ t.placa }}</td>
-                            <td>{{ t.conductor }}</td>
-                            <td>{{ t.empresa }}</td>
-                            <td>{{ t.fecha_ingreso|localtime|date:"Y-m-d H:i:s" }}</td>
-                            <td>
-                                <span class="badge bg-dark estado-badge">
+                                <button type="button"
+                                        class="btn btn-link p-0 border-0 qr-thumb-btn d-inline-block"
+                                        data-qr-src="{% url 'qr_png' t.qr %}?v={{ t.qr }}"
+                                        data-qr-code="{{ t.qr }}"
+                                        title="Ver QR ampliado">
                                     {{ t.estado_actual_ui|default:t.area_actual.nombre }}
                                 </span>
                             </td>
@@ -363,14 +345,33 @@
                                     <a href="{% url 'editar_transportista' t.id %}" class="btn btn-sm btn-outline-primary">Editar</a>
                                     <a href="{% url 'eliminar_transportista' t.id %}" class="btn btn-sm btn-outline-danger">Eliminar</a>
                                 {% endif %}
+                                {% if t.area_actual.codigo == "CARGUE" and t.asignacion_cargue_activa %}
+                                    <a href="{% url 'registrar_novedad_cargue' t.id %}" class="btn btn-sm btn-outline-warning">
+                                        Novedad
+                                    </a>
+                                {% endif %}
                             </td>
                             <td>
-                                {% if t.area_actual.codigo == "CARGUE" %}
-                                    {% for a in t.puertas_actuales %}
-                                        <span class="badge bg-primary">Puerta {{ a.puerta.numero }}</span>
-                                    {% empty %}
-                                        <span class="text-muted">-</span>
-                                    {% endfor %}
+                                {% if t.asignacion_cargue_activa %}
+                                    <span class="badge bg-primary">
+                                        Puerta {{ t.asignacion_cargue_activa.puerta.numero }}
+                                    </span>
+
+                                    {% if t.asignacion_cargue_activa.complemento %}
+                                        <span class="badge bg-warning text-dark">Complemento</span>
+                                    {% endif %}
+
+                                    {% if t.asignacion_cargue_activa.cubicaje %}
+                                        <div class="small text-muted mt-1">
+                                            {{ t.asignacion_cargue_activa.cubicaje }} m³
+                                        </div>
+                                    {% endif %}
+
+                                    {% if t.asignacion_cargue_activa.novedad_activa %}
+                                        <div class="small text-danger mt-1">
+                                            Novedad: {{ t.asignacion_cargue_activa.novedad_activa.causal.nombre }}
+                                        </div>
+                                    {% endif %}
                                 {% else %}
                                     <span class="text-muted">-</span>
                                 {% endif %}
@@ -390,3 +391,18 @@
     </div>
 </div>
 {% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+        <h2 class="mb-1 titulo-principal">Seguimiento de Transportistas</h2>
+        <p class="text-muted mb-0 subtitulo-principal">
+            Control de ingreso, tiempos por área, puertas de cargue y trazabilidad.
+        </p>
+        <div id="ultima-actualizacion"
+             class="small text-muted mt-1"
+             data-timestamp="{{ panel_render_epoch }}">
+            Actualizado hace un instante
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
