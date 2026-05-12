@@ -42,7 +42,7 @@ ALERTA_UMBRAL = {
     "PORTERIA": 10,
     "DESPACHOS": 10,
     "PARQUEADERO": 20,
-    "CARGUE": 60,       # fallback si no hay rango por cubicaje
+    "CARGUE": 120,       # fallback si no hay rango por cubicaje
     "FACTURACION": 15,
 }
 
@@ -1493,8 +1493,3 @@ def usuario_eliminar(request, pk):
             "usuario_obj": usuario_obj,
         },
     )
-import uuid
-import qrcode
-
-from django.conf import settings
-from django.contrib import messages

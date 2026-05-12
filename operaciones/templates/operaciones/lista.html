@@ -1,65 +1,52 @@
-{% extends 'operaciones/base.html' %}
+{% extends "operaciones/base.html" %}
 
 {% block title %}Seguimiento de Transportistas{% endblock title %}
 
 {% block content %}
 <div id="panel-auto">
-    {% include 'operaciones/_lista_panel.html' %}
+    {% include "operaciones/_lista_panel.html" %}
 </div>
 
 <!-- Modal QR -->
 <div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="qrModalLabel">Código QR del transportista</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body text-center">
-                <img id="qrModalImg" src="" alt="Código QR" class="img-fluid mb-3 qr-modal-img">
-                <div id="qrModalCode" class="fw-bold fs-5"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" id="btnImprimirQr" class="btn btn-primary">Imprimir</button>
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-            </div>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title fw-bold mb-0" id="qrModalLabel">Código QR del transportista</h5>
+          <div id="qrModalPlaca" class="text-muted small"></div>
         </div>
-    </div>
-</div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
 
+      <div class="modal-body text-center">
+        <img id="qrModalImg" class="qr-modal-img" alt="QR ampliado">
+        <div id="qrModalCode" class="fw-bold fs-6 mt-2"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnImprimirQr" class="btn btn-primary">Imprimir</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
 <script>
 (function () {
     const panelId = "panel-auto";
-    let intervalVisible = 2000;
-    let intervalHidden = 8000;
+    const intervalVisible = 2000;
+    const intervalHidden = 8000;
     let timerAuto = null;
     let timerVisual = null;
     let enCurso = false;
 
+    // Datos del QR actualmente abierto en modal
     let qrActualSrc = "";
     let qrActualCodigo = "";
-
-    const printUrlBase = "{% url 'qr_imprimir' 'CODIGO_TEMP' %}";
-
-    function guardarEstadoUI() {
-        return {
-            collapseAreas: document.getElementById("collapseAreas")?.classList.contains("show") || false
-        };
-    }
-
-    function restaurarEstadoUI(estado) {
-        const collapseAreas = document.getElementById("collapseAreas");
-        const btnAreas = document.querySelector('[data-bs-target="#collapseAreas"]');
-
-        if (collapseAreas) {
-            collapseAreas.classList.toggle("show", !!estado.collapseAreas);
-        }
-
-        if (btnAreas) {
-            btnAreas.classList.toggle("collapsed", !estado.collapseAreas);
-            btnAreas.setAttribute("aria-expanded", estado.collapseAreas ? "true" : "false");
-        }
-    }
+    let qrActualPlaca = "";
 
     function construirUrlParcial() {
         const url = new URL(window.location.href);
@@ -99,9 +86,70 @@
         updateTimestampBadge();
     }
 
+    function abrirModalQr(src, codigo, placa) {
+        qrActualSrc = src || "";
+        qrActualCodigo = codigo || "";
+        qrActualPlaca = placa || "";
+
+        const img = document.getElementById("qrModalImg");
+        const codeBox = document.getElementById("qrModalCode");
+        const placaBox = document.getElementById("qrModalPlaca");
+
+        if (img) img.src = qrActualSrc;
+        if (codeBox) codeBox.textContent = qrActualCodigo ? `Código: ${qrActualCodigo}` : "";
+        if (placaBox) placaBox.textContent = qrActualPlaca ? `Placa: ${qrActualPlaca}` : "";
+
+        const modalEl = document.getElementById("qrModal");
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+
+    function imprimirQr() {
+        if (!qrActualSrc) return;
+
+        const w = window.open("", "_blank", "width=600,height=750");
+        if (!w) return;
+
+        const placa = qrActualPlaca || "";
+        const codigo = qrActualCodigo || "";
+
+        w.document.open();
+        w.document.write(`
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Imprimir QR</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; padding: 24px; }
+  img { max-width: 340px; width: 100%; height: auto; border: 1px solid #ddd; padding: 10px; border-radius: 10px; background:#fff; }
+  .meta { margin-bottom: 14px; font-size: 16px; }
+  .meta div { margin: 6px 0; }
+</style>
+</head>
+<body>
+  <div class="meta">
+    <div><strong>Placa:</strong> ${placa}</div>
+    <div><strong>Código:</strong> ${codigo}</div>
+  </div>
+  <img src="${qrActualSrc}" alt="QRdow.onload = function () {
+      window.print();
+      window.onafterprint = function () { window.close(); };
+    };
+  <\/script>
+</body>
+</html>
+        `);
+        w.document.close();
+    }
+
     async function refrescarPanel() {
         if (enCurso) return;
         if (document.hidden) return;
+
+        // Evita refrescar si el modal está abierto
+        const modalEl = document.getElementById("qrModal");
+        if (modalEl && modalEl.classList.contains("show")) return;
 
         const activo = document.activeElement;
         if (activo && ["INPUT", "TEXTAREA", "SELECT"].includes(activo.tagName)) {
@@ -109,9 +157,7 @@
         }
 
         enCurso = true;
-
         const panel = document.getElementById(panelId);
-        const estado = guardarEstadoUI();
 
         try {
             const response = await fetch(construirUrlParcial(), {
@@ -121,13 +167,9 @@
                 }
             });
 
-            if (!response.ok) {
-                throw new Error("No fue posible actualizar el panel.");
-            }
+            if (!response.ok) throw new Error("No fue posible actualizar el panel.");
 
-            const html = await response.text();
-            panel.innerHTML = html;
-            restaurarEstadoUI(estado);
+            panel.innerHTML = await response.text();
             updateLiveTimers();
         } catch (error) {
             console.error("Error al actualizar el panel:", error);
@@ -137,41 +179,20 @@
     }
 
     function reiniciarTemporizadorAuto() {
-        if (timerAuto) {
-            clearInterval(timerAuto);
-        }
-
+        if (timerAuto) clearInterval(timerAuto);
         const actual = document.hidden ? intervalHidden : intervalVisible;
         timerAuto = setInterval(refrescarPanel, actual);
     }
 
-    function abrirModalQr(src, codigo) {
-        qrActualSrc = src;
-        qrActualCodigo = codigo;
-
-        const img = document.getElementById("qrModalImg");
-        const code = document.getElementById("qrModalCode");
-
-        img.src = src;
-        code.textContent = codigo;
-
-        const modalEl = document.getElementById("qrModal");
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modal.show();
-    }
-
-    function imprimirQrSticker() {
-        if (!qrActualCodigo) return;
-
-        const url = printUrlBase.replace("CODIGO_TEMP", encodeURIComponent(qrActualCodigo));
-        window.open(url, "_blank", "noopener,noreferrer");
-    }
-
-    document.addEventListener("visibilitychange", reiniciarTemporizadorAuto);
-    document.addEventListener("focusin", reiniciarTemporizadorAuto);
-    document.addEventListener("focusout", reiniciarTemporizadorAuto);
-
+    // ✅ Delegación de eventos: funciona incluso cuando el panel se refresca
     document.addEventListener("click", function (e) {
+        const qrBtn = e.target.closest(".qr-thumb-btn");
+        if (qrBtn) {
+            e.preventDefault();
+            abrirModalQr(qrBtn.dataset.qrSrc, qrBtn.dataset.qrCode, qrBtn.dataset.placa);
+            return;
+        }
+
         const btnRefresh = e.target.closest("#btn-refrescar-panel");
         if (btnRefresh) {
             e.preventDefault();
@@ -179,22 +200,37 @@
             return;
         }
 
-        const qrThumb = e.target.closest(".qr-thumb-btn");
-        if (qrThumb) {
+        const btnPrint = e.target.closest("#btnImprimirQr");
+        if (btnPrint) {
             e.preventDefault();
-            abrirModalQr(qrThumb.dataset.qrSrc, qrThumb.dataset.qrCode);
+            imprimirQr();
             return;
         }
     });
 
-    const btnImprimir = document.getElementById("btnImprimirQr");
-    if (btnImprimir) {
-        btnImprimir.addEventListener("click", imprimirQrSticker);
-    }
+    document.addEventListener("visibilitychange", reiniciarTemporizadorAuto);
+    document.addEventListener("focusin", reiniciarTemporizadorAuto);
+    document.addEventListener("focusout", reiniciarTemporizadorAuto);
 
     reiniciarTemporizadorAuto();
     timerVisual = setInterval(updateLiveTimers, 1000);
     updateLiveTimers();
+
+document.getElementById("btnImprimirQr")?.addEventListener("click", function (e) {
+  e.preventDefault();
+
+  // Espera que el QR esté cargado antes de imprimir
+  const img = document.getElementById("qrModalImg");
+
+  if (img && !img.complete) {
+    img.onload = function () {
+      window.print(); // Igual que Ctrl+P
+    };
+    return;
+  }
+
+  window.print(); // Igual que Ctrl+P
+});
 })();
 </script>
-{% endblock content %}
+{% endblock extra_js %}
